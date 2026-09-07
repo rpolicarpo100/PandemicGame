@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PANDEMIC EVOLUTION — Dossier PE-001</title>
+<style>
+@font-face { font-family:'Display'; src:url('/fonts/display.woff2') format('woff2'); font-weight:800; font-display:swap; }
+@font-face { font-family:'Mono'; src:url('/fonts/mono.woff2') format('woff2'); font-weight:400; font-display:swap; }
+@font-face { font-family:'Mono'; src:url('/fonts/mono700.woff2') format('woff2'); font-weight:700; font-display:swap; }
+:root{
+  --bg:#070a08; --panel:#0c110c; --panel2:#10160f; --line:#242d21; --line2:#313c2d;
+  --ink:#e9efe3; --dim:#7d8a74; --bio:#c8ff3f; --amber:#ffb000; --blood:#ff2e3f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:14px/1.6 'Mono',ui-monospace,monospace;overflow-x:hidden}
+/* grain */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E")}
+::selection{background:var(--bio);color:#0a0d06}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 26px}
+.hazard{height:7px;background:repeating-linear-gradient(-45deg,var(--amber) 0 11px,#0b0b07 11px 22px)}
+.stencil{font-family:'Display',sans-serif;font-weight:800;text-transform:uppercase;line-height:.92;letter-spacing:.01em}
+.eyebrow{font-size:10px;letter-spacing:.32em;color:var(--dim);text-transform:uppercase}
+.sec-h{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:26px}
+.sec-h .no{color:var(--bio);font-size:11px;letter-spacing:.25em}
+.sec-h .tt{font-family:'Display',sans-serif;font-weight:800;font-size:30px;text-transform:uppercase;letter-spacing:.03em}
+.stamp{display:inline-block;border:1.5px solid currentColor;padding:2px 8px;font-size:9px;letter-spacing:.28em;text-transform:uppercase;transform:rotate(-2deg)}
+
+/* top bar */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.doc{font-size:10px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase}
+.doc b{color:var(--amber);font-weight:700}
+.nav{display:flex;gap:22px;font-size:10.5px;letter-spacing:.25em;text-transform:uppercase}
+.nav a{color:var(--dim);text-decoration:none;border-bottom:1px dotted transparent;padding-bottom:2px}
+.nav a:hover{color:var(--bio);border-bottom-color:var(--bio)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.25fr .9fr;gap:48px;padding:64px 0 56px;align-items:start}
+@media(max-width:900px){.hero{grid-template-columns:1fr}}
+h1{font-family:'Display',sans-serif;font-weight:800;font-size:clamp(58px,9vw,108px);line-height:.88;text-transform:uppercase;margin:18px 0 22px}
+h1 .l2{color:var(--bio);text-shadow:0 0 34px rgba(200,255,63,.28)}
+.lead{color:var(--dim);max-width:520px;font-size:13px}
+.lead b{color:var(--ink)}
+.cta{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap}
+.btn{font-family:'Mono',monospace;font-weight:700;font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;
+  padding:14px 26px;border:1px solid var(--line2);background:transparent;color:var(--ink);cursor:pointer;text-decoration:none;
+  display:inline-flex;align-items:center;gap:10px;transition:background .15s,color .15s,border-color .15s}
+.btn.primary{background:var(--bio);border-color:var(--bio);color:#0a0d06}
+.btn.primary:hover{background:#daff70}
+.btn:hover{border-color:var(--bio);color:var(--bio)}
+.btn.primary:hover{color:#0a0d06}
+#walletPanel{margin-top:18px;border:1px solid var(--line);background:var(--panel);padding:14px 16px;font-size:12px;display:none}
+#walletPanel .addr{color:var(--bio);word-break:break-all}
+#walletPanel .note{color:var(--dim);font-size:11px;margin-top:8px}
+#walletPanel .ok{color:var(--bio)} #walletPanel .warn{color:var(--amber)}
+
+/* specimen card */
+.specimen{border:1px solid var(--line2);background:var(--panel);position:relative}
+.specimen::before,.specimen::after{content:"";position:absolute;width:14px;height:14px;border:1px solid var(--dim)}
+.specimen::before{top:-1px;left:-1px;border-right:none;border-bottom:none}
+.specimen::after{bottom:-1px;right:-1px;border-left:none;border-top:none}
+.spec-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase}
+.spec-head b{color:var(--ink)}
+.dish-wrap{display:flex;justify-content:center;padding:26px 0 10px;position:relative}
+.dish{width:230px;height:230px;border-radius:50%;border:1px solid var(--line2);position:relative;
+  background:radial-gradient(circle at 40% 35%,#131a10,#0a0e08 75%);
+  box-shadow:inset 0 0 44px rgba(0,0,0,.65),0 0 0 6px #0a0e08,0 0 0 7px var(--line)}
+.col{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 35%,#e05a68,#7c1622 70%);
+  box-shadow:0 0 12px rgba(255,46,63,.35);animation:grow 7s ease-in-out infinite}
+@keyframes grow{0%,100%{transform:scale(.82);opacity:.85}50%{transform:scale(1.12);opacity:1}}
+.spec-stamp{position:absolute;right:18px;top:96px;color:var(--blood);border:2px solid var(--blood);padding:4px 10px;
+  font-size:11px;letter-spacing:.3em;transform:rotate(-9deg);opacity:.85;text-transform:uppercase}
+table.meta{width:100%;border-collapse:collapse;font-size:11.5px}
+table.meta td{padding:7px 14px;border-top:1px solid var(--line)}
+table.meta td:first-child{color:var(--dim);letter-spacing:.14em;font-size:10px;text-transform:uppercase;width:44%}
+.dot-live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bio);box-shadow:0 0 8px var(--bio);animation:blink 1.8s infinite;margin-right:7px;vertical-align:1px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.barcode{margin:4px 14px 16px;height:34px;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 4px,var(--ink) 4px 7px,transparent 7px 9px,var(--ink) 9px 10px,transparent 10px 15px);opacity:.8}
+.barcode-n{margin:0 14px 14px;font-size:10px;letter-spacing:.4em;color:var(--dim)}
+
+/* dna ticker */
+.ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;white-space:nowrap;padding:7px 0;font-size:11px;color:#41503c;letter-spacing:.28em}
+.ticker span{display:inline-block;animation:slide 60s linear infinite}
+.ticker em{font-style:normal;color:#6d8a4a}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* modes ledger */
+.ledger{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:64px 1.1fr 1.3fr auto;gap:20px;align-items:center;padding:22px 8px;border-bottom:1px solid var(--line);transition:background .15s}
+.row:hover{background:var(--panel)}
+.row .idx{color:var(--dim);font-size:11px;letter-spacing:.2em}
+.row .nm{font-family:'Display',sans-serif;font-weight:800;font-size:30px;text-transform:uppercase}
+.row .ds{color:var(--dim);font-size:11.5px}
+.row .ds .chips{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:9px;letter-spacing:.18em;padding:2px 8px;border:1px solid var(--line2);color:var(--dim);text-transform:uppercase}
+.chip.bio{color:var(--bio);border-color:#4a5c22}
+.st{transform:rotate(-4deg)}
+.st.op{color:var(--bio)} .st.qr{color:var(--amber)} .st.ar{color:var(--dim)}
+@media(max-width:800px){.row{grid-template-columns:40px 1fr;grid-auto-rows:auto}.row .ds{grid-column:2}.row .stx{grid-column:2}}
+
+/* economy */
+.alloc{display:flex;height:52px;border:1px solid var(--line2);margin:8px 0 4px}
+.alloc div{display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:.12em;color:#0a0d06;font-weight:700;overflow:hidden}
+.alloc .a1{background:#8aa53a;width:10%}.alloc .a2{background:var(--bio);width:30%}
+.alloc .a3{background:var(--amber);width:25%}.alloc .a4{background:#b0433f;width:20%}.alloc .a5{background:#8fa08a;width:15%}
+.alloc-legend{display:flex;font-size:9.5px;color:var(--dim);letter-spacing:.1em;margin-bottom:22px}
+.wledger div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--line);padding:8px 4px;font-size:12px}
+.wledger b{letter-spacing:.15em}.wledger span{color:var(--dim)}
+.fine{color:var(--dim);font-size:10.5px;letter-spacing:.12em;margin-top:20px;border-left:2px solid var(--amber);padding-left:12px}
+
+/* principles */
+.plist{display:grid;grid-template-columns:1fr 1fr;gap:2px 40px}
+@media(max-width:700px){.plist{grid-template-columns:1fr}}
+.plist div{border-bottom:1px dotted var(--line);padding:11px 2px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+.plist div::before{content:"■";color:var(--bio);margin-right:12px;font-size:8px;vertical-align:2px}
+section{padding:54px 0}
+footer{border-top:1px solid var(--line);margin-top:20px;padding:44px 0 30px;text-align:center}
+footer .tg{font-family:'Display',sans-serif;font-weight:800;font-size:clamp(26px,4.5vw,44px);text-transform:uppercase;line-height:1}
+footer .tg em{font-style:normal;color:var(--amber)}
+footer .dc{color:var(--dim);font-size:10px;letter-spacing:.3em;margin-top:16px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="hazard"></div>
+<div class="wrap">
+  <div class="topbar">
+    <div class="doc">DOSSIER <b>PE-001</b> // CLASSIFICAÇÃO: <b>NÍVEL 4</b> // DISTRIBUIÇÃO: RESTRITA</div>
+    <nav class="nav"><a href="#modos">Modos</a><a href="#economia">Economia</a><a href="#protocolo">Protocolo</a><a href="/play">Simulação</a></nav>
+  </div>
+
+  <div class="hero">
+    <div>
+      <div class="eyebrow">FICHA DE SURTO // AGENTE-01 // PROTOCOLO DE CONTENÇÃO ATIVO</div>
+      <h1>Pandemic<br><span class="l2">Evolution</span></h1>
+      <p class="lead">Um jogo competitivo de evolução e estratégia global. Controlas um agente patogénico.
+      A Humanity é uma <b>inteligência adaptativa</b> que aprende com os teus erros. Cada partida gera
+      um surto diferente — e uma história diferente. <b>Jogar é gratuito. O Web3 é opcional.</b></p>
+      <div class="cta">
+        <a class="btn primary" href="/play">▶ Iniciar simulação</a>
+        <button class="btn" id="connectBtn">◈ Ligar Phantom</button>
+      </div>
+      <div id="walletPanel"></div>
+    </div>
+
+    <div class="specimen">
+      <div class="spec-head"><span>AMOSTRA</span><b>SPC-2041-VRS</b></div>
+      <div class="dish-wrap">
+        <div class="dish">
+          <span class="col" style="width:26px;height:26px;left:34px;top:52px"></span>
+          <span class="col" style="width:14px;height:14px;left:120px;top:34px;animation-delay:1.2s"></span>
+          <span class="col" style="width:34px;height:34px;left:130px;top:110px;animation-delay:2.6s"></span>
+          <span class="col" style="width:12px;height:12px;left:70px;top:150px;animation-delay:.7s"></span>
+          <span class="col" style="width:20px;height:20px;left:52px;top:96px;animation-delay:3.8s"></span>
+          <span class="col" style="width:9px;height:9px;left:168px;top:70px;animation-delay:2s"></span>
+        </div>
+        <div class="spec-stamp">Nível-4</div>
+      </div>
+      <table class="meta">
+        <tr><td>Designação</td><td>VIRUS-01</td></tr>
+        <tr><td>Classe</td><td>RNA · TRANSMISSÃO AÉREA</td></tr>
+        <tr><td>R₀ estimado</td><td style="color:var(--blood)">██.██ [REDACTED]</td></tr>
+        <tr><td>Estado</td><td><span class="dot-live"></span>ATIVO — EM EXPANSÃO</td></tr>
+        <tr><td>Origem</td><td>[AGUARDA SELEÇÃO DO OPERADOR]</td></tr>
+      </table>
+      <div class="barcode"></div>
+      <div class="barcode-n">0 0 4 1 &nbsp; 2 0 2 6 &nbsp; V R S &nbsp; 0 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="ticker"><span id="dna"></span></div>
+
+<div class="wrap" id="modos">
+  <section>
+    <div class="sec-h"><span class="no">SEC.02</span><span class="tt">Modos de operação</span></div>
+    <div class="ledger">
+      <div class="row">
+        <span class="idx">01</span>
+        <span class="nm">Pandemia</span>
+        <span class="ds">PvE · operador vs Humanity AI. Três cenários com regras próprias de deteção, relógio e recursos.
+          <span class="chips"><span class="chip bio">Silent Dawn</span><span class="chip bio">Global Rush</span><span class="chip bio">Iron World</span></span>
+        </span>
+        <span class="stx"><span class="stamp st op">Operacional</span></span>
+      </div>
+      <div class="row">
+        <span class="idx">02</span>
+        <span class="nm">Virus</span>
+        <span class="ds">PvP · 2–6 agentes no mesmo mundo. Score composto: infeção sustentável, regiões, objetivos, eficiência. Nunca “quem matou mais”.
+          <span class="chips"><span class="chip">Phase 3</span><span class="chip">Arena com stake</span></span>
+        </span>
+        <span class="stx"><span class="stamp st qr">Em quarentena</span></span>
+      </div>
+      <div class="row">
+        <span class="idx">03</span>
+        <span class="nm">Embate</span>
+        <span class="ds">1v1 assimétrico. Um operador espalha, o outro deteta, contém e elimina. Informação assimétrica e fog of war.
+          <span class="chips"><span class="chip">Phase 4</span></span>
+        </span>
+        <span class="stx"><span class="stamp st qr">Em quarentena</span></span>
+      </div>
+      <div class="row">
+        <span class="idx">04</span>
+        <span class="nm">Ranked</span>
+        <span class="ds">MMR · Bronze → Legend · seasons de 30 dias. A competição oficial nunca envolve dinheiro — o stake vive na Arena.
+          <span class="chips"><span class="chip">Phase 6</span></span>
+        </span>
+        <span class="stx"><span class="stamp st ar">Arquivado</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="economia">
+    <div class="sec-h"><span class="no">SEC.03</span><span class="tt">Protocolo de distribuição de fees</span></div>
+    <div class="alloc">
+      <div class="a1">10%</div><div class="a2">30%</div><div class="a3">25%</div><div class="a4">20%</div><div class="a5">15%</div>
+    </div>
+    <div class="alloc-legend" style="text-transform:uppercase">
+      <span style="width:10%">Referral</span><span style="width:30%">Rewards</span><span style="width:25%">Treasury</span><span style="width:20%">Reserve</span><span style="width:15%">Marketing</span>
+    </div>
+    <div class="wledger">
+      <div><b>W-REFERRAL</b><span>10% · paga referenciadores · sobras → treasury</span></div>
+      <div><b>W-REWARDS</b><span>30% · prémios competitivos · seasons · eventos</span></div>
+      <div><b>W-TREASURY</b><span>25% · operações · multisig com timelocks</span></div>
+      <div><b>W-RESERVE</b><span>20% · risco · reversões · chargebacks</span></div>
+      <div><b>W-MARKETING</b><span>15% · growth · campanhas · teto mensal</span></div>
+    </div>
+    <div class="fine">MOEDA: USDC · CHAIN: SOLANA · HOLD GATE: 10.000 $PEVO PARA WALLET CONNECT (ATIVO NA PHASE 7 — TOKEN AINDA NÃO EMITIDO · DEVNET PRIMEIRO)</div>
+  </section>
+
+  <section id="protocolo">
+    <div class="sec-h"><span class="no">SEC.04</span><span class="tt">Princípios absolutos</span></div>
+    <div class="plist">
+      <div>Zero pay-to-win</div>
+      <div>Zero MLM · referral de 1 nível</div>
+      <div>Server authoritative — o cliente nunca manda</div>
+      <div>Devnet before mainnet</div>
+      <div>Game first · Web3 opcional</div>
+      <div>USDC antes de qualquer token próprio</div>
+      <div>Ledger pseudónimo · histórico económico imutável</div>
+      <div>Medir antes de escalar</div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="tg">Evolve. Adapt. <em>Dominate.</em></div>
+    <div class="tg" style="font-size:clamp(14px,2vw,20px);color:var(--dim);margin-top:8px">Own your legacy.</div>
+    <div class="dc">GAME FIRST → COMPETITION → RETENTION → WEB3 → ECONOMY &nbsp;//&nbsp; REV 1.2 · 2026-09-07 · FIM DO DOCUMENTO</div>
+  </div>
+</footer>
+<div class="hazard"></div>
+
+<script>
+/* DNA ticker */
+(function(){
+  const bases='ACTG', el=document.getElementById('dna');
+  let s='';
+  for(let i=0;i<160;i++){
+    const b=bases[Math.floor(Math.random()*4)];
+    s += (b==='A'||b==='T') ? '<em>'+b+'</em>' : b;
+    if(i%4===3) s+=' · ';
+  }
+  el.innerHTML = s + s;
+})();
+/* Phantom — deteção real, sem simulação */
+const panel=document.getElementById('walletPanel'), btn=document.getElementById('connectBtn');
+const short=a=>a.slice(0,4)+'…'+a.slice(-4);
+btn.addEventListener('click',async()=>{
+  const provider=(window.phantom&&window.phantom.solana)||(window.solana&&window.solana.isPhantom?window.solana:null);
+  if(!provider){
+    panel.style.display='block';
+    panel.innerHTML='<span class="warn">⚠ Phantom não detetado neste browser.</span><div class="note">Instala a extensão em phantom.app e abre esta página num browser com a extensão ativa. Em iframes sandboxed a extensão pode não estar acessível.</div>';
+    return;
+  }
+  try{
+    btn.textContent='◈ A ligar…';
+    const resp=await provider.connect();
+    const pk=resp.publicKey.toString();
+    btn.textContent='◈ '+short(pk);
+    panel.style.display='block';
+    panel.innerHTML='<span class="ok">✔ Wallet conectada</span> — <span class="addr">'+pk+'</span>'+
+      '<div class="note">HOLD GATE: o acesso à economia (stake, marketplace) exigirá <b>10.000 $PEVO</b>. O token ainda <b>não foi emitido</b> — será ativado na Phase 7, devnet primeiro. Até lá, o modo gratuito está aberto sem qualquer custo.</div>'+
+      '<div class="note"><a href="#" id="disc" style="color:var(--amber)">[ DESCONECTAR ]</a></div>';
+    document.getElementById('disc').onclick=async e=>{
+      e.preventDefault();
+      try{await provider.disconnect();}catch(_){}
+      btn.textContent='◈ Ligar Phantom'; panel.style.display='none';
+    };
+  }catch(err){
+    btn.textContent='◈ Ligar Phantom';
+    panel.style.display='block';
+    panel.innerHTML='<span class="warn">⚠ Ligação recusada ou falhou.</span><div class="note">'+String(err&&err.message||err)+'</div>';
+  }
+});
+</script>
+</body>
+</html>
