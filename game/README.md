@@ -14,16 +14,35 @@ Protótipo jogável do core game, para validar **fun** antes de investir em PvP/
 |---------|--------:|--------:|------------:|------------:|
 | SILENT DAWN | 400d | 0.8× | 0.7× | 60 |
 | GLOBAL RUSH | 260d | 1.0× | 1.2× | 90 |
-| IRON WORLD | 400d | 1.25× | 1.5× | 40 |
+| IRON WORLD | 400d | 1.6× | 1.6× | 50 |
 
 `STANDARD` (1.0× em tudo) existe apenas para o simulador de balance.
+
+> **IRON (decisão A2):** barra de extinção própria **≥90%** (as restantes exigem
+> ≥95%). Aos 65% de infetados a resposta humana entra em **colapso**
+> (cura ×0.30, vacina/treat-tech lentos, fechos de rota anulados) — medido:
+> bots smart vencem ~2/8; sem isto o iron era matematicamente imbatível
+> (tetos de 83–94% de mortos com 100% infetados).
 
 ## Correr
 
 ```bash
 node server.js            # http://localhost:3000 (zero dependências)
-node server.js --simtest dumb|cheap|smart   # teste de balance headless
+node server.js --simtest dumb|cheap|smart   # teste de balance headless (decisões em lib/bot.cjs)
 ```
+
+### Sessões, persistência e dev console (ronda C-A-M)
+
+- **C1 — sessões**: cada browser tem o seu mundo (`cookie pev_sid`, ou `?sid=`).
+  `/state`, `/events`, `/action` são por-sessão; `/api/dev/*` não cria sessões.
+- **A1 — crash-safe**: handler `uncaughtException` + snapshot de todos os mundos
+  em `SAVE_FILE` (default tmpdir; na Render aponta para volume persistente) a cada
+  ≤15 s e antes de sair (SIGTERM/SIGINT/crash). Ao arrancar, restaura.
+- **C4 — dev console**: `/dev` e `/api/dev/*` exigem `DEV_ACCESS_KEY` (header
+  `x-dev-key` ou `?key=`). Em produção sem env var, gera uma chave efémera e
+  imprime-a no log do Render. `DEV_ADMIN_KEY` protege o `/api/dev/reset`.
+- **C2 — telemetria**: define `DEV_DATA_FILE` (e `SAVE_FILE`) para um caminho
+  persistente; export de corridas em `/api/dev/export` (CSV).
 
 ## O que está implementado
 

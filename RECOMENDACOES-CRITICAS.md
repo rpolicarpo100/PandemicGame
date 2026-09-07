@@ -126,3 +126,33 @@ crescer o público.
 - **Rastos de movimento** (linha esbatida na direção) — o trânsito lê-se com
   direção; vermelho continua = rota contaminada.
 - Medido em browser real: **60,9 fps** a 1500×950 (folga para M3).
+
+---
+
+## ESTADO — ronda "faz todas" (implementado a 2026-09-07)
+
+Todas as recomendações C1–C4 / A1–A4 / M1–M3 implementadas, com QA verde
+(75/75 headless+UI + 15/15 UI extra) e produção atualizada.
+
+| # | Ação | Implementação | Evidência |
+|---|------|---------------|-----------|
+| C1 | Mundos por sessão | `SESS` map por cookie `pev_sid`/`?sid=` em `server.js`; rate-limit 60 act/10s por sessão; evicção LRU (96); bot do `simTest` continua headless sem sessões | `qa/concurrency.mjs` reescrito: 12/12 (5 SSE isoladas, B/C não afetam A, `?sid=` coerente) |
+| C2 | Telemetria sobrevive a deploy | `DEV_DATA_FILE`/`SAVE_FILE` por env (caminho persistente na Render, a definir no painel); snapshot de mundos + telemetria periodicamente | docs em `game/README.md`; export CSV |
+| C3 | Chave fora do workspace | chave movida para `~/.ssh/` (600) + `.gitignore` `pandemicgame_deploy_key*` e `.ssh/`; push continua a funcionar | `git ls-remote` OK |
+| C4 | `/dev` e `/api/*` autenticados | `DEV_ACCESS_KEY`/`DEV_ADMIN_KEY`; em Render sem env gera chave efémera e imprime no log | prod `/api/dev/*` → 401 sem chave |
+| A1 | Crash-safe | handlers `uncaughtException`/`unhandledRejection` + snapshot ≤15 s e no exit; `restoreWorld()` ao arranque | log de boot "restauradas N sessões" |
+| A2 | Iron decidido | barra própria **≥90%** + evento de **colapso** aos 65% infetados (cura ×0.30, vacina ×0.25, fechos anulados); base/silent/rush mantêm ≥95% | bots smart iron **2/8 vitórias** (d182/d236); antes 0/10, tetos 83–94% |
+| A3 | Balance com mais reps + dashboard | `balance.mjs`: dumb2/cheap4/smart4 (+3 iron info); export `/api/dev/export` (CSV do ledger) | balance 7/7; pacing mantido (smart standard 3/4, cheap 2/4) |
+| A4 | Bot único | `game/lib/bot.cjs` (SMART_PRIO/LETH/seed) usado por `server.js --simtest`, `qa/e2e-game.mjs` e `qa/agents.mjs` | silent smart d191/835 ≈ medição anterior |
+| M1 | Top-10 local | localStorage `pevo.top10` + painel no fim com ★ NOVO RECORDE | UI: entries gravadas, persistente entre rondas |
+| M2 | Banner FASE 2 | aos 65% de infetados: banner "FASE 2 — OBJETIVO FINAL: EXTINÇÃO ≥X%" (9 s), reset no novo briefing | UI: visto e screenshot `phase2_banner.png` |
+| M3 | Frota por ecrã | frota escala com `min(cv.width,900)/900` (0.55–1.0) | UI: 320 (largo) → 176 (700px); 60,9 fps mantido |
+
+### Notas de operação (Render, ação manual de 2 min)
+
+1. No painel da Render define `DEV_ACCESS_KEY` (e `DEV_ADMIN_KEY`) com valor
+   fixo — até lá o servidor gera uma efémera e imprime-a no log.
+2. (Opcional) `DEV_DATA_FILE`/`SAVE_FILE` para um disco persistente
+   (ex.: `/var/data/…`) — sem isso a telemetria/mundos resetam no redeploy.
+3. (Opcional) Substituir a chave SSH por Deploy Hook da Render + segredo GitHub,
+   e remover `~/.ssh/pandemicgame_deploy_key` do ambiente.

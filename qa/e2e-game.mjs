@@ -3,6 +3,7 @@
 // e confirma que a dev console regista a partida no ledger/telemetria.
 // Nota: vitória = EXTINÇÃO (mortos >=95%); a partida pode durar ~200+ dias.
 import { check, okAll, jget, jpost, sleep } from './lib.mjs';
+import bot from '../game/lib/bot.cjs';      // política única de compra (A4)
 
 const SCENARIO = process.env.E2E_SCENARIO || 'silent';   // silent ~100s no speed 8
 const WALL = 300000;                                      // 300s max por partida (extinção ~d200+)
@@ -34,23 +35,12 @@ while (Date.now() - t0 < WALL) {
     actions++;
     continue;
   }
-  // bot: expansão barata até ~45% infetados; depois vira a cadeia letal (objetivo: EXTINÇÃO)
+  // bot partilhado (lib/bot.cjs): expansão barata até ~45% infetados; depois cadeia letal (EXTINÇÃO)
   const owned = new Set(st.owned || []);
-  const prefs = ['s_incub', 's_asym', 's_lowdet', 'a_heat', 't_mob1', 'a_cold', 't_air1', 'sp_rapid', 'a_urban'];
-  const lethal = ['l_resp', 'l_organ', 'l_systemic', 'u_collapse', 'sp_load'];
-  const cumF = st.world && st.world.pop ? st.world.cumInf / st.world.pop : 0;
-  const list = cumF >= 0.45 ? lethal.concat(prefs) : prefs;
-  let n = null;
-  for (const pid of list) {
-    const nn = st.meta.nodes.find(x => x.id === pid && !owned.has(pid) && x.req.every(r => owned.has(r)));
-    if (nn && st.dna >= Math.round(nn.cost * 1.2)) { n = nn; break; }
-  }
-  if (!n) {
-    const cheap = st.meta.nodes.filter(x => !owned.has(x.id) && x.req.every(r => owned.has(r)))
-      .sort((a, b) => a.cost - b.cost)[0];
-    if (cheap && st.dna >= cheap.cost + 12) n = cheap;
-  }
-  if (n) { const r2 = await jpost('/action', { type: 'evolve', node: n.id }); if (r2.json && r2.json.ok) buys++; actions++; }
+  const pick = bot.decide('smart', {
+    owned, dna: st.dna, cumInf: st.world ? st.world.cumInf : 0, worldPop: st.world ? st.world.pop : 1,
+    costMod: st.player ? st.player.costMod : 1, nodes: st.meta.nodes, scenario: st.scenario });
+  if (pick) { const r2 = await jpost('/action', { type: 'evolve', node: pick }); if (r2.json && r2.json.ok) buys++; actions++; }
 }
 check('partida chegou ao fim (result)', !!result && typeof result.win === 'boolean',
   result ? `${result.win ? 'VITÓRIA' : 'DERROTA'} — ${String(result.reason).slice(0, 50)} (dia ${result.day})` : 'timeout');

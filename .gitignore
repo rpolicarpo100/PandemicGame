@@ -7,3 +7,7 @@ game/data/
 # git: node_modules
 node_modules/
 qa/node_modules/
+
+# segredos (C3): chaves e credenciais nunca entram no repositório
+pandemicgame_deploy_key*
+.ssh/

@@ -186,10 +186,15 @@ aside{width:400px;min-width:330px;background:var(--panel);border-left:1px solid 
     <div id="prompt"></div>
     <div id="neterr">⚠ TELEMETRIA INTERROMPIDA — A RECUPERAR LIGAÇÃO</div>
 
+    <div id="phase2" style="display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);
+      z-index:40;background:rgba(14,6,7,.94);border:1px solid #ff2e3f;color:#ffd9dc;
+      padding:8px 22px;font-family:'Display',sans-serif;font-size:15px;letter-spacing:.18em;
+      text-align:center;box-shadow:0 0 24px rgba(255,46,63,.35);pointer-events:none">
+      <span style="color:#ff2e3f">FASE 2</span> — DOIS TERÇOS DO MUNDO INFETADOS · OBJETIVO FINAL: <span id="ph2Obj">EXTINÇÃO</span></div>
     <div class="overlay" id="scenOverlay">
       <div class="card">
         <h1>Briefing de <em>missão</em></h1>
-        <p>És o agente <b style="color:var(--bio)">VIRUS-01</b>. Infetar <b>não basta</b>: o objetivo é <b>EXTINGUIR a humanidade</b> (eliminar ≥95% dos 8,2 mil milhões). O relógio esgota-se — a vacina e a cura correm contra ti.</p>
+        <p>És o agente <b style="color:var(--bio)">VIRUS-01</b>. Infetar <b>não basta</b>: o objetivo é <b>EXTINGUIR a humanidade</b> (eliminar <b id="objPct">≥95%</b> dos 8,2 mil milhões). O relógio esgota-se — a vacina e a cura correm contra ti.</p>
         <div class="lbl-sel">① Seleciona o tipo de agente</div>
         <div class="scen-cards" id="agentCards"></div>
         <div class="lbl-sel">② Escolhe o cenário da operação</div>
@@ -211,6 +216,7 @@ aside{width:400px;min-width:330px;background:var(--panel);border-left:1px solid 
         <p id="endReason"></p>
         <div id="endScore" style="margin:10px 0 4px;padding:10px;border:1px dashed #3a4a33;text-align:center"></div>
         <div class="stats-grid" id="endStats"></div>
+        <div id="endTop" style="margin:12px auto 0;max-width:560px;text-align:left"></div>
         <button class="btn" onclick="action({type:'newgame'})">Novo briefing</button>
       </div>
     </div>
@@ -238,6 +244,7 @@ aside{width:400px;min-width:330px;background:var(--panel);border-left:1px solid 
 <script src="/world.js"></script>
 <script>
 let S=null, selected=null, hover=null, mouse={x:0,y:0,inside:false}, lastEvoHtml='', lastLogHtml='';
+let _ph2=false,_topSaved='';
 const fmt=n=>n>=1000?(n/1000).toFixed(2)+' mil M':n>=1?n.toFixed(1)+'M':Math.round(n*1000)+'k';
 const TREE_NAMES={transmission:'SEQ.01 · TRANSMISSÃO',adaptation:'SEQ.02 · ADAPTAÇÃO',lethality:'SEQ.03 · LETALIDADE',
   mutation:'SEQ.04 · MUTAÇÃO',stealth:'SEQ.05 · STEALTH',specialization:'SEQ.06 · ESPECIALIZAÇÃO',ultimate:'SEQ.07 · ☣ ULTIMATE',
@@ -257,6 +264,8 @@ async function action(body){
     const r=await fetch('/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const out=await r.json();
     if(out.error) toast(out.error.toUpperCase());
+    if(out.ok&&body.type==='newgame'){ _ph2=false; _topSaved='';
+      const p2=document.getElementById('phase2'); if(p2)p2.style.display='none'; }
     return out;
   }catch(e){ toast('ERRO DE LIGAÇÃO'); return {error:'net'}; }
 }
@@ -484,7 +493,9 @@ function markMajors(){
 let FLEET=[], fleetKey='';
 function buildFleet(){
   if(!S||!S.meta||!S.meta.edges)return;
-  const key=S.meta.edges.length+':'+S.regions.length+':'+S.scenario;
+  // M3: densidade da frota adapta-se ao ecrã (até ao equivalente a 900px de largura)
+  const fk=Math.max(0.55,Math.min(1,Math.min(cv.width,900)/900));
+  const key=S.meta.edges.length+':'+S.regions.length+':'+S.scenario+':'+Math.round(fk*100);
   if(key===fleetKey)return;
   fleetKey=key; FLEET=[];
   const byId={};S.regions.forEach(r=>byId[r.id]=r);
@@ -505,8 +516,8 @@ function buildFleet(){
       n++;
     }
   };
-  // frota densa: prioriza as rotas de maior tráfego (soma das populações)
-  pick('air', 105, 0); pick('sea', 75, 0); pick('land', 140, 0);
+  // frota densa: prioriza as rotas de maior tráfego (soma das populações); escala p/ ecrã (M3)
+  pick('air', Math.round(105*fk), 0); pick('sea', Math.round(75*fk), 0); pick('land', Math.round(140*fk), 0);
 }
 function qBez(p0,p1,p2,t){const u=1-t;return [u*u*p0[0]+2*u*t*p1[0]+t*t*p2[0], u*u*p0[1]+2*u*t*p1[1]+t*t*p2[1]];}
 function drawVeh(ctx,x,y,ang,type,col){
@@ -598,7 +609,9 @@ function renderHeader(){
   document.getElementById('hCum').textContent=(100*S.world.cumInf/S.world.pop).toFixed(1)+'%';
   document.getElementById('hDead').textContent=fmt(S.world.dead);
   document.getElementById('hStage').textContent=S.humanity.stageName;
-  if(S.meta.extinctFrac)document.getElementById('hObj').textContent='EXTINÇÃO ≥'+(S.meta.extinctFrac*100)+'%';
+  if(S.meta.extinctFrac){const pct=(S.meta.extinctFrac*100)+'%';
+    document.getElementById('hObj').textContent='EXTINÇÃO ≥'+pct;
+    const ob=document.getElementById('objPct');if(ob)ob.textContent='≥'+pct;}
   document.getElementById('awarePct').textContent=Math.round(S.humanity.awareness)+'%';
   document.getElementById('awareBar').style.width=S.humanity.awareness+'%';
   document.getElementById('vaxPct').textContent=Math.round(S.humanity.vaccine)+'%';
@@ -784,9 +797,59 @@ function renderOverlays(){
   }else end.style.display='none';
 }
 
+/* ---------- M2: banner FASE 2 (aos 65% infetados) ---------- */
+function checkPhase2(){
+  if(_ph2||!S||!S.world||S.phase!=='running'||S.result)return;
+  const pop=S.world.pop||1;
+  if((S.world.cumInf||0)/pop<0.65)return;
+  _ph2=true;
+  const el=document.getElementById('phase2');
+  const obj=document.getElementById('ph2Obj');
+  const ef=S.meta&&S.meta.extinctFrac?S.meta.extinctFrac:0.95;
+  if(obj)obj.textContent='EXTINÇÃO ≥'+(ef*100)+'%';
+  el.style.display='block';
+  setTimeout(()=>{el.style.display='none'},9000);
+}
+/* ---------- M1: top-10 local (localStorage) no fim de jogo ---------- */
+function maybeTop10(){
+  const r=S&&S.result;if(!r)return;
+  const key=(r.win?'W':'L')+':'+r.day+':'+(r.score?r.score.value:0);
+  if(key===_topSaved)return; _topSaved=key;
+  const entry={agent:S.agent,scenario:S.scenario,win:r.win,day:r.day,
+    score:r.score?r.score.value:0,deadPct:+(100*r.dead/r.worldPop).toFixed(1),ts:Date.now()};
+  let prev=[];
+  try{prev=JSON.parse(localStorage.getItem('pevo.top10')||'[]')}catch(_){}
+  const best0=prev[0];
+  const newBest=!best0||entry.score>best0.score||(entry.score===best0.score&&entry.day<best0.day);
+  try{
+    prev.push(entry);
+    prev.sort((a,b)=>b.score-a.score||a.day-b.day);
+    prev=prev.slice(0,10);
+    localStorage.setItem('pevo.top10',JSON.stringify(prev));
+  }catch(_){}
+  const agm=(S.meta&&S.meta.agents||[]);
+  const lab=e=>{const ag=agm.find(x=>x.id===e.agent);return (ag?(ag.icon||'')+' '+ag.name:e.agent);};
+  const box=document.getElementById('endTop');
+  box.innerHTML=
+    '<div style="font-size:9px;letter-spacing:.3em;color:var(--dim);margin:0 0 6px">TOP-10 · REGISTOS LOCAIS'+
+    (newBest?' · <span style="color:#ffd24d">★ NOVO RECORDE</span>':'')+'</div>'+
+    '<div style="max-height:170px;overflow:auto">'+
+    prev.map((e,i)=>'<div style="display:flex;gap:10px;align-items:baseline;padding:3px 2px;border-bottom:1px solid var(--line);'+
+      'font-size:10.5px;'+(i===0?'color:#ffd24d;font-weight:700':'color:var(--dim)')+'">'+
+      '<span style="width:22px;text-align:right;flex:none">'+(i+1)+'º</span>'+
+      '<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+lab(e)+'</span>'+
+      '<span style="flex:none">'+String(e.scenario||'').toUpperCase()+'</span>'+
+      '<span style="flex:none">dia '+e.day+'</span>'+
+      '<span style="flex:none;width:46px;text-align:right">'+e.score+'</span>'+
+      '<span style="flex:none;width:52px;text-align:right">☠'+e.deadPct+'%</span></div>').join('')+
+    '</div>';
+}
+
 function render(){
   if(!S)return;
   renderHeader();renderEvoTab();renderRegionTab();renderLogTab();renderOverlays();renderWire();
+  checkPhase2();
+  maybeTop10();
 }
 
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
@@ -803,6 +866,11 @@ window.__qa=()=>({phase:S?S.phase:null,day:S?S.day:null,scenario:S?S.scenario:nu
   canvas:[cv.width,cv.height],regions:S?S.regions.length:0,dna:S?S.dna:0,
   infected:S?S.world.infected:0,logCount:S?S.log.length:0,newsCount:S&&S.news?S.news.length:0,
   wireLen:(document.getElementById('wireTxt').textContent||'').length,
+  fleet:typeof FLEET!=='undefined'?FLEET.length:0,phase2Seen:_ph2,speed:S?S.speed:null,
+  pendingEvent:!!(S&&S.pendingEvent),
+  cumFrac:S&&S.world&&S.world.pop?(S.world.cumInf/S.world.pop):0,
+  endTop:document.getElementById('endTop').textContent.slice(0,60),
+  extinctFrac:S&&S.meta?S.meta.extinctFrac:null,
   fonts:{display:document.fonts.check('800 40px Display'),mono:document.fonts.check('400 12px Mono')}});
 window.__qaClickRegion=id=>{
   if(!S||!MB)return false;

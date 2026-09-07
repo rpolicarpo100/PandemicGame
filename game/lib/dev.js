@@ -11,7 +11,12 @@ const { REGIONS } = require('../data.js');            // world population (para 
 const WORLD_POP = REGIONS.reduce((s, r) => s + r.pop, 0);
 
 const DEV_WALLET = process.env.DEV_WALLET || '8biEDVUUh21injn4HXkmtRtmkiMzdtoeEXxKE5NLE4LH';
-const ACCESS_KEY = process.env.DEV_ACCESS_KEY || '';      // if set, /dev requires ?key=
+// C4 — DEV_ACCESS_KEY: define-a como env var na Render (recomendado). Se não existir,
+// gera uma efémera por arranque e imprime-a no log (local ou Render) para acesso ao /dev.
+let ACCESS_KEY = process.env.DEV_ACCESS_KEY || '';
+const _autoAccess = !ACCESS_KEY && !!process.env.RENDER_INSTANCE_ID;
+if (_autoAccess) ACCESS_KEY = 'a_' + crypto.randomBytes(12).toString('hex');
+if (_autoAccess) console.log('[dev] C4 — DEV_ACCESS_KEY não definida: gerada efémera (ver logs Render): ' + ACCESS_KEY);
 const ADMIN_KEY = process.env.DEV_ADMIN_KEY || '';        // if set, POST /api/dev/reset requires it
 const FILE = process.env.DEV_DATA_FILE || path.join(os.tmpdir(), 'pevo-dev-telemetry.json');
 
@@ -259,7 +264,7 @@ function codeMetrics() {
 // ---------- findings / self-critique ----------
 function findings() {
   const f = [];
-  if (S.sse.peakEver > 1) f.push('single-world: o servidor tem UM estado de jogo global — todas as sessões ativas partilham o mesmo mundo e o mesmo DNA (confirmado: pico de ' + S.sse.peakEver + ' sessões simultâneas). Multiplayer por jogador requer refactor para mundos por sessão.');
+  if (S.sse.peakEver > 1) f.push('sessions: o servidor usa um mundo POR SESSÃO (cookie pev_sid) desde o refactor C1 — pico medido de ' + S.sse.peakEver + ' sessões simultâneas já com isolamento.');
   f.push('no-contract: a wallet é só leitura pública — o contrato $PEVO ainda não existe (roadmap Phase 7). O saldo SOL exibido é o saldo real da conta no mainnet.');
   f.push(S._diskNote || 'persistence: ficheiro de telemetria em ' + FILE + ' (volátil entre redeploys — usar DEV_DATA_FILE para volume persistente).');
   f.push('free-tier: instância free — sleep após ~15 min sem tráfego; primeira visita após sleep pode demorar 30-60 s.');
@@ -359,6 +364,13 @@ async function apiRoute(req, res, url) {
     const repo = await getRepo();
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=60' });
     return res.end(JSON.stringify({ repo, local: codeMetrics(), deps: 0, node: process.version }));
+  }
+  if (req.method === 'GET' && p === '/api/dev/export') {
+    const cols = ['ts', 'result', 'win', 'day', 'scenario', 'agent', 'score', 'deadPct', 'cumInfPct', 'regions', 'nodes', 'builds', 'vaccine', 'extinctFrac'];
+    const esc = x => { x = x == null ? '' : String(x); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
+    const rows = S.ledger.map(l => cols.map(c => esc(l[c])).join(',')).join('\n');
+    res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=pevo-runs.csv' });
+    return res.end('sep=,\n' + cols.join(',') + '\n' + rows);
   }
   if (req.method === 'POST' && p === '/api/dev/reset') {
     if (!ADMIN_KEY) { res.writeHead(403, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'DEV_ADMIN_KEY não definido no servidor' })); }

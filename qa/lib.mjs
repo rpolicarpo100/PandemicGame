@@ -15,36 +15,49 @@ export function okAll() {
 }
 export function reportLines() { return results; }
 
-export async function jget(path, timeoutMs = 8000) {
-  const ctl = new AbortController();
-  const to = setTimeout(() => ctl.abort(), timeoutMs);
-  try {
-    const r = await fetch(BASE + path, { signal: ctl.signal });
-    const txt = await r.text();
-    let json = null;
-    try { json = JSON.parse(txt); } catch (_) {}
-    return { status: r.status, txt, json };
-  } finally { clearTimeout(to); }
+// ---------- cookie jar: cada "jogador" de QA é um browser com as suas cookies ----------
+// (sessões C1: pev_sid — sem jar, cada pedido seria um jogador novo)
+function makeJar() {
+  let cookie = null;
+  const api = async (method, path, body, timeoutMs = 8000) => {
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), timeoutMs);
+    const headers = {};
+    if (cookie) headers.cookie = cookie;
+    if (body !== undefined) headers['content-type'] = 'application/json';
+    try {
+      const r = await fetch(BASE + path, { method, headers,
+        body: body === undefined ? undefined : JSON.stringify(body), signal: ctl.signal, redirect: 'manual' });
+      const txt = await r.text();
+      const sc = r.headers.get('set-cookie');
+      if (sc) cookie = sc.split(';')[0];
+      let json = null;
+      try { json = JSON.parse(txt); } catch (_) {}
+      return { status: r.status, txt, json };
+    } finally { clearTimeout(to); }
+  };
+  return {
+    get: p => api('GET', p),
+    post: (p, b) => api('POST', p, b),
+    get cookie() { return cookie; },
+  };
 }
-export async function jpost(path, body, timeoutMs = 8000) {
-  const ctl = new AbortController();
-  const to = setTimeout(() => ctl.abort(), timeoutMs);
-  try {
-    const r = await fetch(BASE + path, { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body), signal: ctl.signal });
-    const txt = await r.text();
-    let json = null;
-    try { json = JSON.parse(txt); } catch (_) {}
-    return { status: r.status, txt, json };
-  } finally { clearTimeout(to); }
-}
+const _defaultJar = makeJar();
+export const jget = (p, t) => _defaultJar.get(p, t);
+export const jpost = (p, b, t) => _defaultJar.post(p, b, t);
+export const fresh = makeJar;          // novo "browser" (sessão independente)
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-export async function readFirstSseFrame(timeoutMs = 6000) {
+export async function readFirstSseFrame(jar = null, timeoutMs = 6000) {
   // opens an SSE stream, returns first parsed frame object + close fn
+  // compat: chamada antiga readFirstSseFrame(timeoutMs)
+  if (typeof jar === 'number') { timeoutMs = jar; jar = null; }
+  const j = jar || _defaultJar;
   const ctl = new AbortController();
-  const r = await fetch(BASE + '/events', { signal: ctl.signal });
-  if (!r.ok || !r.body) return { frame: null, close: () => ctl.abort() };
+  const headers = j.cookie ? { cookie: j.cookie } : {};
+  const r = await fetch(BASE + '/events', { signal: ctl.signal, headers });
+  let sc = r.headers.get('set-cookie');
+  if (!r.ok || !r.body) return { frame: null, close: () => ctl.abort(), jar: j };
   const reader = r.body.getReader();
   const dec = new TextDecoder();
   let buf = '';
@@ -61,5 +74,5 @@ export async function readFirstSseFrame(timeoutMs = 6000) {
       return null;
     } finally { clearTimeout(to); }
   })();
-  return { frame: await frameP, close: () => ctl.abort() };
+  return { frame: await frameP, close: () => ctl.abort(), jar: j };
 }

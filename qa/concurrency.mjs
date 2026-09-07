@@ -1,11 +1,12 @@
-// PANDEMIC EVOLUTION — concorrência SSE + prova do limite "single-world"
-import { BASE, check, okAll, jget, jpost, readFirstSseFrame, sleep } from './lib.mjs';
+// PANDEMIC EVOLUTION — concorrência SSE + isolamento de mundos por sessão (C1)
+import { check, okAll, jget, readFirstSseFrame, sleep, fresh } from './lib.mjs';
 
-console.log('\n▶ CONCURRENCY — SSE stress + isolamento de mundos\n');
+console.log('\n▶ CONCURRENCY — SSE stress + mundos por sessão (C1)\n');
 
-// ---- A) 5 SSE simultâneas ----
+// ---- A) 5 SSE simultâneas, cada uma no seu "browser" ----
+const jars = [fresh(), fresh(), fresh(), fresh(), fresh()];
 const streams = [];
-for (let i = 0; i < 5; i++) streams.push(await readFirstSseFrame(8000));
+for (let i = 0; i < 5; i++) streams.push(await readFirstSseFrame(jars[i], 8000));
 const framesOk = streams.every(s => s.frame && s.frame.phase);
 check('5 SSE abrem + entregam frame', framesOk);
 
@@ -14,25 +15,48 @@ let d = (await jget('/api/dev/overview')).json;
 check('sse.active = 5', d.sse.active === 5, `active=${d.sse.active}`);
 check('sse.peak >= 5', d.sse.peak >= 5, `peak=${d.sse.peak}`);
 
-// ---- B) prova do mundo partilhado (limitação conhecida, documentada) ----
-await jpost('/action', { type: 'newgame', scenario: 'silent' });
-const st1 = await jget('/state');
-const cand = st1.json.regions.find(x => x.airport && (x.climate === 'temperate' || x.climate === 'humid'));
-await jpost('/action', { type: 'seed', region: cand.id });
-const st2 = await jget('/state');
-check('A: silent semeado', st2.json.phase === 'running' && st2.json.scenario === 'silent');
+// ---- B) isolamento: cada sessão tem o SEU mundo ----
+// jogador A: silent e semeado (running)
+const A = fresh();
+await A.post('/action', { type: 'newgame', scenario: 'silent' });
+let a0 = (await A.get('/state')).json;
+const cand = a0.regions.find(x => x.airport && (x.climate === 'temperate' || x.climate === 'humid'));
+await A.post('/action', { type: 'seed', region: cand.id });
+const a1 = (await A.get('/state')).json;
+check('A: silent semeado', a1.phase === 'running' && a1.scenario === 'silent');
 
-// segundo "jogador" muda de jogo
-await jpost('/action', { type: 'newgame', scenario: 'rush' });
-const st3 = await jget('/state');
-const sharedWorld = st3.json.scenario === 'rush' && st3.json.phase === 'setup';
-check('B: mundo GLOBAL partilhado (single-world)', sharedWorld,
-  'jogador B alterou o jogo do jogador A — comportamento EXPECTED do slice atual (sem salas).');
+// jogador B (nunca tocou no mundo do A) entra: deve estar em setup, mundo próprio
+const B = fresh();
+const b0 = (await B.get('/state')).json;
+check('B: entra em mundo próprio (setup, não-running)', b0.phase === 'setup',
+  `phase=${b0.phase} (isolation: não herda o running do A)`);
+const bCand = b0.regions.find(x => x.airport && (x.climate === 'temperate' || x.climate === 'humid'));
+await B.post('/action', { type: 'newgame', scenario: 'rush' });
+await B.post('/action', { type: 'seed', region: bCand.id });
+const b1 = (await B.get('/state')).json;
+check('B: rush semeado no seu mundo', b1.phase === 'running' && b1.scenario === 'rush');
 
-// dev console confirma com flag
-d = (await jget('/api/dev/overview')).json;
-const flagged = (d.findings || []).some(f => f.includes('single-world'));
-check('auto-crítica: finding single-world ativo', flagged);
+// jogador C: escolhe outro agente no SEU setup — não afeta A nem B
+const C = fresh();
+await C.post('/action', { type: 'newgame' });
+const c1 = (await C.get('/state')).json;
+await C.post('/action', { type: 'agent', agent: 'virus' });
+const c2 = (await C.get('/state')).json;
+check('C: escolhe virus no seu mundo', c1.phase === 'setup' && c2.agent === 'virus');
+
+// A continua intacto apesar de B e C terem jogado (antes: griefing global)
+await sleep(400);
+const a2 = (await A.get('/state')).json;
+check('A: intacto após B+C jogarem (anti-griefing)',
+  a2.phase === 'running' && a2.scenario === 'silent' && a2.agent === a1.agent && a2.day >= a1.day,
+  `phase=${a2.phase} scenario=${a2.scenario} agent=${a2.agent} dia ${a1.day}->${a2.day}`);
+
+// mesma sessão (mesmo cookie) = mesmo mundo; ?sid= repetido também é coerente
+const S1 = fresh();
+const q1 = await S1.get('/state?sid=qatest123');
+await S1.post('/action', { type: 'newgame', scenario: 'rush' });
+const q2 = await S1.get('/state?sid=qatest123');
+check('?sid= mantém a mesma sessão entre pedidos', q1.status === 200 && q2.json && q2.json.scenario === 'rush');
 
 // ---- C) fecho limpo ----
 for (const s of streams) s.close();

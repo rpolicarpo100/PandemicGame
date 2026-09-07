@@ -7,8 +7,10 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { REGIONS, NODES, BUILDS, EVENTS, AGENTS } = require('./data.js');
 const dev = require('./lib/dev.js');
+const bot = require('./lib/bot.cjs');  // política única de compra (A4)
 
 const PORT = process.env.PORT || 3000;
 const TICK_MS = 2000;          // 1 tick = 1 in-game day (calibration parameter)
@@ -44,6 +46,9 @@ const SCENARIOS = {
     desc: 'Relógio curto e humanidade alerta. Expansão agressiva obrigatória.' },
   iron: { id: 'iron', name: 'IRON WORLD', tag: 'A humanidade está preparada', diff: 3,
     clock: 400, awarenessMul: 1.60, detectMul: 1.60, startDna: 50, treatMul: 1.25,
+    extinctFrac: 0.90, // A2 (decisão): barra própria 90% no IRON. Medido: bots smart 2/5 com
+    // tetos 90-94% — sem isto (95% fixo) o iron é matematicamente imbatível: a cura+vacina
+    // salvam sempre os últimos ~10-15%. Base/silent/rush mantêm EXTINÇÃO ≥95%.
     desc: 'Deteção rápida, tratamentos fortes, consciência acelerada. Só para especialistas.' },
   standard: { id: 'standard', name: 'STANDARD', tag: 'Calibração', diff: 2,
     clock: 400, awarenessMul: 1.00, detectMul: 1.00, startDna: 60, treatMul: 1.0,
@@ -220,6 +225,17 @@ function tick() {
   const stats = G.stats;
   let totalNewI = 0, totalI = 0, totalDead = 0;
 
+  // A2 — IRON WORLD: colapso da resposta humana (uma vez, aos 65% infetados).
+  // A barra própria do iron é 90% (ver SCENARIOS.iron) — sem colapso era matematicamente
+  // imbatível: cura+vacina salvavam sempre os últimos ~10-17% (tetos medidos 83-94%).
+  if (G.scenario === 'iron' && !G.ironCollapse && G.cumInf >= 0.65 * WORLD_POP) {
+    G.ironCollapse = true; G.ironCollapseDay = G.day;
+    news('GLOBAL WIRE', 'COLAPSO — infraestrutura sanitária global em falência. Resta a morte.', 'panic');
+    log('IRON WORLD: a resposta humanitária colapsou (dia ' + G.day + ')', 'humanity');
+    for (const r of G.regions) { r.closures.air = false; r.closures.sea = false; r.closures.land = false; }
+  }
+  const ironCol = (G.scenario === 'iron' && G.ironCollapse) ? 1 : 0;
+
   // within-region dynamics
   for (const r of G.regions) {
     if (r.i <= 0) { r.i = 0; continue; }
@@ -238,7 +254,7 @@ function tick() {
     // colapso dos cuidados: com a humanidade em agonia (muitos mortos), a cura
     // deixa de acompanhar — a morte torna-se irreversível nos estádios finais.
     const careCollapse = Math.max(0.02, 1 - 1.04 * (G.regions.reduce((z, x) => z + x.dead, 0) / WORLD_POP));
-    const cureRate = (0.004 + 0.060 * r.treatment * scMul('treatMul', 1)) * (1 - stats.cureResist) * (1 - 0.45 * (stats.refuse || 0)) * careCollapse;
+    const cureRate = (0.004 + 0.060 * r.treatment * scMul('treatMul', 1)) * (1 - stats.cureResist) * (1 - 0.45 * (stats.refuse || 0)) * careCollapse * (ironCol ? 0.30 : 1);
     const cured = Math.min(Math.max(r.i - deaths, 0) * cureRate, r.i - deaths);
     r.i = Math.max(0, r.i + newI - deaths - cured);
     if (r.i > 0 && r.s > 0 && r.i < r.s * 0.0004 && Math.random() < 0.10) r.i = 0; // outbreak fizzles out (fração da cidade)
@@ -357,13 +373,13 @@ function tick() {
     if (G.stage >= 7) news('GLOBAL WIRE', 'Vacinação em massa iniciada nos territórios identificados', 'alert');
   }
   if (G.stage >= 5) {
-    G.treatTech = Math.min(1, G.treatTech + 0.015);
+    G.treatTech = Math.min(1, G.treatTech + 0.015 * (ironCol ? 0.15 : 1));
     for (const r of G.regions) r.treatment = Math.min(1, G.treatTech * (0.3 + 0.7 * rmeta(r.id).healthcare) * (r.identified ? 1 : 0.4));
   }
   if (G.stage >= 6) {
     const avgSci = REGIONS.reduce((s, r) => s + r.science, 0) / REGIONS.length;
     const urgency = 1 + 2 * (G.cumInf / WORLD_POP);
-    G.vaccine = Math.min(100, G.vaccine + 1.0 * CFG.vaccineRate * (0.4 + avgSci) * urgency * (G.vaccine >= 100 ? 1.3 : 1));
+    G.vaccine = Math.min(100, G.vaccine + 1.0 * CFG.vaccineRate * (0.4 + avgSci) * urgency * (G.vaccine >= 100 ? 1.3 : 1) * (ironCol ? 0.25 : 1));
     milestone('vax25', G.vaccine >= 25, 'LAB-WIRE', 'Candidatos a vacina entram em ensaios clínicos', 'good');
     milestone('vax50', G.vaccine >= 50, 'LAB-WIRE', 'Vacina: eficácia preliminar anunciada; produção em escala', 'good');
     milestone('vax75', G.vaccine >= 75, 'LAB-WIRE', 'Vacina aprovada em emergência; distribuição começa', 'good');
@@ -411,9 +427,10 @@ function tick() {
     log(`Evento: ${ev.name}`, 'event');
   }
 
-  // win / loss — o objetivo é EXTINGUIR a humanidade (mortos >= EXTINCT_FRAC)
+  // win / loss — o objetivo é EXTINGUIR a humanidade (mortos >= frac do cenário; iron: 95% + colapso A2)
+  const extFrac = (SCENARIOS[G.scenario] && SCENARIOS[G.scenario].extinctFrac) || EXTINCT_FRAC;
   if (totalI <= 0 && G.day > 20) return endGame(false, 'O AGENTE MORREU — a humanidade sobreviveu intacta.');
-  if (totalDead >= EXTINCT_FRAC * WORLD_POP) return endGame(true, 'EXTINÇÃO — a humanidade foi extinta.');
+  if (totalDead >= extFrac * WORLD_POP) return endGame(true, 'EXTINÇÃO — a humanidade foi extinta.');
   if (totalI < 1e-4 && G.day > 30 && identified.length > 0) {
     G.eradic++;
     if (G.eradic >= ERADIC_DAYS) return endGame(false, 'ERRADICAÇÃO — o agente foi eliminado.');
@@ -462,7 +479,7 @@ function endGame(win, reason) {
     cumInf: G.cumInf, dead: G.regions.reduce((s, r) => s + r.dead, 0),
     regions: regionsHit, nodes: G.owned.length, builds: G.buildsTriggered.length,
     worldPop: WORLD_POP, stage: STAGE_NAMES[G.stage], vaccine: G.vaccine,
-    extinctFrac: EXTINCT_FRAC,
+    extinctFrac: (SCENARIOS[G.scenario] && SCENARIOS[G.scenario].extinctFrac) || EXTINCT_FRAC,
     score,
   };
   log(`FIM: ${reason} — score ${score.value}/1000 (${score.label})`, win ? 'win' : 'lose');
@@ -590,15 +607,11 @@ function publicState() {
     scenarios: Object.values(SCENARIOS).filter(x => x.id !== 'standard'),
     meta: { nodes: NODES.filter(n => !n.agentOnly || n.agentOnly === G.agent), edges: EDGES, agents: AGENTS.map(a => ({ id: a.id, name: a.name, icon: a.icon, tag: a.tag, desc: a.desc })), stageNames: STAGE_NAMES,
             clockLimit: scMul('clock', CLOCK_LIMIT),
-            extinctFrac: EXTINCT_FRAC, tickMs: TICK_MS },
+            extinctFrac: (SCENARIOS[G.scenario] && SCENARIOS[G.scenario].extinctFrac) || EXTINCT_FRAC, tickMs: TICK_MS },
   };
 }
 
-// ---------- sim test (headless bots, balance pacing) ----------
-const SMART_PRIO = ['t_mob1','a_heat','a_cold','t_air1','s_incub','s_asym','m_rate','a_humid','a_dry',
-  'a_urban','sp_rapid','s_lowdet','t_air2','t_contact1','t_water1','m_adaptive','a_extreme','m_controlled',
-  't_animal1','t_vector1','a_rural','c_buzz','v_aves','c_dist','v_livestock','c_neg','v_insetos','v_master','c_anarchy'];
-
+// ---------- sim test (headless bots, balance pacing) — decisões via lib/bot.cjs (A4) ----------
 function simTest(strategy) {
   strategy = strategy || process.argv[3] || 'cheap';
   const scenIdx = process.argv.indexOf('--scenario');
@@ -607,48 +620,22 @@ function simTest(strategy) {
   if (process.env.SIM_AGENT && AGENTS.find(x => x.id === process.env.SIM_AGENT)) doAction({ type: 'agent', agent: process.env.SIM_AGENT });
   let region;
   if (strategy === 'smart') {
-    const cands = REGIONS.filter(r => (r.climate === 'temperate' || r.climate === 'humid') && r.airport)
-      .sort((a, b) => b.pop - a.pop);
-    region = cands[Math.floor(Math.random() * Math.min(3, cands.length))].id;
+    region = bot.seedPick(REGIONS);
   } else {
     region = REGIONS[Math.floor(Math.random() * REGIONS.length)].id;
   }
   doAction({ type: 'seed', region });
   let days = 0;
-  while (G.phase === 'running' && days < CLOCK_LIMIT + 5) {
+  const loopCap = (SCENARIOS[G.scenario] && SCENARIOS[G.scenario].clock || CLOCK_LIMIT) + 5;
+  while (G.phase === 'running' && days < loopCap) {
     if (G.pendingEvent) doAction({ type: 'eventChoice', option: strategy === 'smart' ? 0 : Math.floor(Math.random() * 3) });
-    const availAll = () => NODES
-      .filter(n => !G.owned.includes(n.id) && n.req.every(r => G.owned.includes(r)))
-      .sort((a, b) => a.cost - b.cost);
-    if (strategy === 'smart') {
-      // fase 1: expansão barata; fase 2 (>=45% da humanidade infetada): cadeia letal
-      const cumF = G.cumInf / WORLD_POP;
-      let next = null;
-      const lethAt = G.scenario === 'iron' ? 0.50 : 0.45;
-      if (cumF >= lethAt) {
-        const LETH = ['l_resp', 'l_organ', 'l_systemic', 'u_collapse', 'sp_load', 'l_collapse', 'l_neuro'];
-        next = LETH.find(id => {
-          const n = NODES.find(x => x.id === id);
-          return n && !G.owned.includes(id) && n.req.every(r => G.owned.includes(r)) &&
-                 G.dna >= Math.round(n.cost * G.stats.costMod) + 10;
-        });
-      }
-      if (!next) {
-        const prio = SMART_PRIO.find(id => {
-          const n = NODES.find(x => x.id === id);
-          return n && !G.owned.includes(id) && n.req.every(r => G.owned.includes(r)) &&
-                 G.dna >= Math.round(n.cost * G.stats.costMod) + 10;
-        });
-        if (prio) next = prio;
-      }
-      if (!next) { const a = availAll(); if (a.length && G.dna >= a[0].cost * G.stats.costMod + 15) next = a[0].id; }
-      if (next) doAction({ type: 'evolve', node: next });
-    } else if (strategy !== 'dumb') {
-      const avail = availAll();
-      if (avail.length && G.dna >= avail[0].cost * G.stats.costMod + 15) {
-        doAction({ type: 'evolve', node: avail[0].id });
-      }
-    }
+    const nid = bot.decide(strategy, {
+      owned: new Set(G.owned), dna: G.dna, cumInf: G.cumInf, worldPop: WORLD_POP,
+      costMod: G.stats.costMod,
+      nodes: NODES.filter(n => !n.agentOnly || n.agentOnly === G.agent), // como o meta.nodes do jogo
+      scenario: G.scenario,
+    });
+    if (nid) doAction({ type: 'evolve', node: nid });
     tick();
     days++;
     if (process.env.SIM_DEBUG && (days % 25 === 0 || G.phase !== 'running')) {
@@ -673,17 +660,89 @@ function simTest(strategy) {
 if (process.argv.includes('--simtest') && require.main === module) { simTest(); process.exit(0); }
 
 // ---------- HTTP server ----------
-const clients = new Set();
-function broadcast() {
+// C1 — SESSÕES: cada visitante tem o seu próprio mundo (cookie pev_sid ou ?sid=).
+// O motor continua a usar o global G (scratch); cada handler liga G ao jogo da sessão.
+const crypto = require('crypto');
+const SESS = new Map();                 // sid -> { id, agent, game, lastSeen, sse:Set, acts:[] }
+const SESS_MAX = 96;
+const SAVE_FILE = process.env.SAVE_FILE || path.join(os.tmpdir(), 'pevo-world-save.json');
+let _lastSave = 0;
+
+function sidOf(url, req) {
+  const q = url.searchParams.get('sid');
+  if (q && /^[A-Za-z0-9_-]{4,64}$/.test(q)) return 'q_' + q;
+  const c = String(req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith('pev_sid='));
+  if (c) { const v = c.slice(8); if (v) return v; }
+  return null;
+}
+function ensureSession(url, req, res) {
+  let sid = sidOf(url, req);
+  if (sid && SESS.has(sid)) { const s = SESS.get(sid); s.lastSeen = Date.now(); return s; }
+  sid = sid || 's_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const s = { id: sid, agent: AGENT_ID, game: null, lastSeen: Date.now(), sse: new Set(), acts: [] };
+  SESS.set(sid, s);
+  if (SESS.size > SESS_MAX) {
+    let old = null;
+    for (const x of SESS.values()) if (!x.sse.size && (!old || x.lastSeen < old.lastSeen)) old = x;
+    if (old) SESS.delete(old.id);
+  }
+  try { res.setHeader('Set-Cookie', `pev_sid=${sid}; Path=/; Max-Age=604800; SameSite=Lax`); } catch (_) {}
+  return s;
+}
+function freshGame(agent, scenario) { AGENT_ID = agent; return newGame(scenario); }
+function bindSessionGame(s) {
+  if (!s.game) s.game = freshGame(s.agent, null);   // primeira visita: mundo próprio, agente da sessão
+  G = s.game;
+}
+function ssePush(s) {
+  if (!s.game || !s.sse || !s.sse.size) return;
+  G = s.game;
   const data = `data: ${JSON.stringify(publicState())}\n\n`;
-  for (const res of clients) { try { res.write(data); } catch (_) {} }
+  for (const res of s.sse) { try { res.write(data); } catch (_) {} }
+}
+function eachClient(fn) { for (const s of SESS.values()) for (const res of (s.sse || [])) { try { fn(res); } catch (_) {} } }
+
+// ---------- A1: snapshot do mundo (crash-safe, C2-ready) ----------
+function snapshotWorld() {
+  try {
+    const out = { t: Date.now(), v: 1, sessions: [] };
+    for (const s of SESS.values()) {
+      if (!s.game) continue;
+      out.sessions.push({ id: s.id, agent: s.agent,
+        g: JSON.parse(JSON.stringify(s.game, (k, v) => (k === 'tags' && v instanceof Set) ? [...v] : v)) });
+    }
+    if (!out.sessions.length) return;
+    fs.mkdirSync(path.dirname(SAVE_FILE), { recursive: true });
+    fs.writeFileSync(SAVE_FILE, JSON.stringify(out));
+  } catch (_) {}
+}
+function maybeSave(force) {
+  const now = Date.now();
+  if (force || now - _lastSave > 15000) { _lastSave = now; snapshotWorld(); }
+}
+function restoreWorld() {
+  try {
+    const raw = fs.readFileSync(SAVE_FILE, 'utf8');
+    const d = JSON.parse(raw);
+    if (!d || d.v !== 1) return;
+    let n = 0;
+    for (const e of (d.sessions || [])) {
+      if (!e || !e.g || SESS.has(e.id) || SESS.size >= SESS_MAX) continue;
+      const g = newGame(SCENARIOS[e.g.scenario] ? e.g.scenario : null);
+      Object.assign(g, e.g);
+      g.tags = new Set(Array.isArray(e.g.tags) ? e.g.tags : []);
+      g.sc = (e.g.scenario && SCENARIOS[e.g.scenario]) || null;
+      SESS.set(e.id, { id: e.id, agent: e.agent || 'bacteria', game: g, lastSeen: Date.now(), sse: new Set(), acts: [] });
+      n++;
+    }
+    if (n) console.log(`[world] restauradas ${n} sessões de ${SAVE_FILE}`);
+  } catch (_) { console.log('[world] sem snapshot anterior'); }
 }
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   dev.countReq(req, res, url);
 
-  // ---------- dev console (sync path for /dev, async for /api/dev/*) ----------
   if (req.method === 'GET' && url.pathname === '/dev') {
     if (!dev.authOk(req, url)) { res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('401 — DEV_ACCESS_KEY necessário (?key=…)'); }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -695,7 +754,6 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-
   if (req.method === 'GET' && url.pathname === '/world.js') {
     res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' });
     return res.end(fs.readFileSync(path.join(__dirname, 'public', 'world.js')));
@@ -715,25 +773,49 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
   }
+
+  const s = ensureSession(url, req, res);
   if (req.method === 'GET' && url.pathname === '/state') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    bindSessionGame(s);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     return res.end(JSON.stringify(publicState()));
   }
   if (req.method === 'GET' && url.pathname === '/events') {
+    bindSessionGame(s);
+    s.sse.add(res);
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
     res.write(`data: ${JSON.stringify(publicState())}\n\n`);
     dev.sseOpen(req, res);
-    clients.add(res);
-    req.on('close', () => clients.delete(res));
+    req.on('close', () => { s.sse.delete(res); });
     return;
   }
   if (req.method === 'POST' && url.pathname === '/action') {
+    // rate limit leve por sessão (anti-DoS)
+    const now = Date.now();
+    s.acts = s.acts.filter(t => now - t < 10000);
+    if (s.acts.length > 60) { res.writeHead(429, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'rate limited' })); }
+    s.acts.push(now);
     let body = '';
     req.on('data', c => { body += c; if (body.length > 4096) req.destroy(); });
     req.on('end', () => {
       try {
-        const out = doAction(JSON.parse(body || '{}'));
-        broadcast();
+        const b = JSON.parse(body || '{}');
+        let out;
+        if (b.type === 'newgame') {
+          const sc = b.scenario && SCENARIOS[b.scenario] ? b.scenario : null;
+          const old = s.game;
+          if (old) dev.onNewGame(old, sc);
+          s.game = freshGame(s.agent, sc);
+          G = s.game;
+          out = { ok: true, scenario: G.scenario };
+        } else {
+          if (!s.game) bindSessionGame(s);
+          G = s.game;
+          out = doAction(b);
+          if (out && out.ok && b.type === 'agent') s.agent = b.agent;
+        }
+        ssePush(s);
+        maybeSave(false);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(out));
       } catch (e) {
@@ -750,22 +832,38 @@ G = newGame();
 
 if (require.main === module) {
   dev.start();
+  restoreWorld();
   setInterval(() => {
-    if (!G || G.phase !== 'running' || G.pendingEvent) return;
-    G.acc += 500 * G.speed;
-    const t0 = Date.now();
-    let ran = false;
-    while (G.acc >= TICK_MS) { tick(); ran = true; G.acc -= TICK_MS; if (G.phase !== 'running') break; }
-    if (ran) { dev.loopMs(Date.now() - t0); dev.tickMark(); }
-    broadcast();
+    for (const s of SESS.values()) {
+      const g = s.game;
+      if (!g) continue;
+      G = g;
+      if (g.phase === 'running' && !g.pendingEvent) {
+        g.acc += 500 * g.speed;
+        const t0 = Date.now();
+        let ran = false;
+        while (g.acc >= TICK_MS) { tick(); ran = true; g.acc -= TICK_MS; if (g.phase !== 'running') break; }
+        if (ran) { dev.loopMs(Date.now() - t0); dev.tickMark(); }
+      }
+      ssePush(s);
+    }
+    maybeSave(false);
   }, 500);
-  setInterval(() => { for (const res of clients) { try { res.write(': hb\n\n'); } catch (_) {} } }, 15000);
+  setInterval(() => { eachClient(res => { try { res.write(': hb\n\n'); } catch (_) {} }); }, 15000);
+
+  // A1 — crash: snapshot imediato antes de morrer (Render reinicia e restaura)
+  process.on('uncaughtException', err => {
+    console.error('[fatal]', err && err.stack || err);
+    try { snapshotWorld(); } catch (_) {}
+    process.exit(1);
+  });
+  process.on('unhandledRejection', err => { console.error('[unhandledRejection]', err && (err.stack || err.message || err)); });
+  process.once('SIGTERM', () => { maybeSave(true); dev.save(); process.exit(0); });
+  process.once('SIGINT', () => { maybeSave(true); dev.save(); process.exit(0); });
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Pandemic Evolution vertical slice on http://0.0.0.0:${PORT}`);
   });
-  process.once('SIGTERM', () => { dev.save(); process.exit(0); });
-  process.once('SIGINT', () => { dev.save(); process.exit(0); });
 }
 
-module.exports = { newGame, doAction, tick, publicState, simTest, getGame: () => G, setGame: g => { G = g; } };
+module.exports = { newGame, doAction, tick, publicState, simTest, getGame: () => G, setGame: g => { G = g; }, sessions: SESS };
