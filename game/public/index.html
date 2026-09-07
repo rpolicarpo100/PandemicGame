@@ -359,7 +359,6 @@ function draw(t){
   }
 
   // colónias
-  const placedLbl=[];
   S.regions.forEach((r,idx)=>{
     const x=px(r),y=py(r);
     const frac=r.pop>0?Math.min(1,r.i/r.pop):0;
@@ -395,24 +394,33 @@ function draw(t){
       ctx.beginPath();ctx.arc(x,y,rr+6,0,Math.PI*2);
       ctx.strokeStyle='rgba(233,239,227,.8)';ctx.stroke();
     }
-    ctx.fillStyle=frac>0.15?'#ff9db0':'#93a284';
-    ctx.font='7.5px Mono,monospace';ctx.textAlign='center';
-    // com 95 cidades reais, só rotulamos as principais (top-N por pop) +
-    // a que está em hover/seleção; as restantes aparecem no tooltip.
-    const isMajor = r._maj || hover===r || selected===r.id;
-    if(isMajor){
-      const lbl=r.name.toUpperCase(),hw=lbl.length*2.3;
-      let ly=y+rr+10;
-      outer:for(const c of [y+rr+10,y-rr-5,y-rr-15,y+rr+20]){
-        for(const o of S.regions){if(o.id===r.id)continue;
-          if(Math.abs(px(o)-x)<hw+rad(o)+2&&Math.abs(c-py(o))<rad(o)+5)continue outer;}
-        for(const p of placedLbl){if(Math.abs(p[0]-x)<hw+p[1]+7&&Math.abs(p[2]-c)<8)continue outer;}
-        ly=c;break;
-      }
-      placedLbl.push([x,hw,ly]);
-      ctx.fillText(lbl,x,ly);
-    }
   });
+
+  // Rótulos — camada própria: hover/seleção primeiro; depois as principais cidades
+  // do mundo (top-20 por pop, com prioridade da maior para a menor na anti-colisão).
+  const placedLbl=[];
+  const ordered=[];
+  if(hover&&S.regions.includes(hover))ordered.push(hover);
+  if(selected){const sel=S.regions.find(r=>r.id===selected);if(sel&&sel!==hover)ordered.push(sel);}
+  S.regions.filter(r=>r._maj&&r!==hover&&r.id!==selected)
+    .sort((a,b)=>b.pop-a.pop).forEach(r=>ordered.push(r));
+  ctx.font='7.5px Mono,monospace';ctx.textAlign='center';
+  for(const r of ordered){
+    if(!r||!r.name)continue;
+    const x=px(r),y=py(r),rr=rad(r);
+    const frac=r.pop>0?Math.min(1,r.i/r.pop):0;
+    ctx.fillStyle=frac>0.15?'#ff9db0':'#93a284';
+    const lbl=r.name.toUpperCase(),hw=lbl.length*2.3;
+    let ly=y+rr+10;
+    outer:for(const c of [y+rr+10,y-rr-5,y-rr-15,y+rr+20]){
+      for(const o of S.regions){if(o.id===r.id)continue;
+        if(Math.abs(px(o)-x)<hw+rad(o)+2&&Math.abs(c-py(o))<rad(o)+5)continue outer;}
+      for(const p of placedLbl){if(Math.abs(p[0]-x)<hw+p[1]+7&&Math.abs(p[2]-c)<8)continue outer;}
+      ly=c;break;
+    }
+    placedLbl.push([x,hw,ly]);
+    ctx.fillText(lbl,x,ly);
+  }
 
   // escala
   const kmpp=40075/MB.w;
@@ -456,10 +464,11 @@ function draw(t){
     ctx.fillText(`LAT ${lat>=0?'+':''}${lat.toFixed(1)}° · LON ${lon>=0?'+':''}${lon.toFixed(1)}°`,mouse.x+10,mouse.y-8);
   }
 }
+const MAX_MAJOR_LABELS = 20; // principais cidades do mundo (por população)
 function markMajors(){
   if(!S)return;
   const arr=S.regions.slice().sort((a,b)=>b.pop-a.pop);
-  const keep=new Set(arr.slice(0,Math.max(30,Math.ceil(arr.length*0.4))).map(r=>r.id));
+  const keep=new Set(arr.slice(0,MAX_MAJOR_LABELS).map(r=>r.id));
   S.regions.forEach(r=>r._maj=keep.has(r.id));
 }
 /* ---------- veículos (camada visual animada, derivada das rotas reais) ---------- */
