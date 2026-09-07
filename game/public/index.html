@@ -324,28 +324,9 @@ function draw(t){
   // moldura
   ctx.strokeStyle='#313c2d';ctx.strokeRect(MB.x,MB.y,MB.w,MB.h);
 
-  const byId={};S.regions.forEach(r=>byId[r.id]=r);
-  // rotas
-  for(const e of S.meta.edges){
-    const a=byId[e.a],b=byId[e.b];
-    const x1=px(a),y1=py(a),x2=px(b),y2=py(b);
-    const hot=(hover&&(e.a===hover.id||e.b===hover.id))||(selected&&(e.a===selected||e.b===selected));
-    ctx.lineWidth=hot?1.7:1;
-    if(e.type==='air'){
-      const mx=(x1+x2)/2,my=(y1+y2)/2;
-      const dx=x2-x1,dy=y2-y1,dist=Math.hypot(dx,dy)||1;
-      const off=Math.min(44,dist*0.18);
-      ctx.strokeStyle=hot?'#e0ca6d':'#6b6134';ctx.setLineDash([2,6]);ctx.lineDashOffset=-t*22;
-      ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx-dy/dist*off,my+dx/dist*off,x2,y2);ctx.stroke();
-    }else if(e.type==='sea'){
-      ctx.strokeStyle=hot?'#4aa88c':'#1d4438';ctx.setLineDash([5,4]);ctx.lineDashOffset=-t*8;
-      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
-    }else{
-      ctx.strokeStyle=hot?'#5f7a4c':'#2c3a26';ctx.setLineDash([]);
-      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
-    }
-  }
-  ctx.setLineDash([]);ctx.lineWidth=1;
+  // Linhas de rota suprimidas de propósito: só os veículos animados desenham as
+  // ligações (a vermelho quando a rota está contaminada) — mapa mais limpo.
+  ctx.lineWidth=1;
 
   // veículos animados (aviões/barcos/carros) — vermelhos quando a rota está contaminada
   drawFleet(t);
@@ -437,20 +418,19 @@ function draw(t){
   ctx.fillStyle='#4c5846';ctx.textAlign='right';
   ctx.fillText('ESCALA (EQUADOR)',MB.x+MB.w-12,by+13);
 
-  // legenda de vias
+  // legenda de veículos (as linhas de rota já não se desenham)
   const lgx=MB.x+12, lgy=MB.y+MB.h-40;
-  ctx.fillStyle='rgba(7,10,8,.8)';ctx.fillRect(lgx-8,lgy-13,138,46);
-  ctx.strokeStyle='#242d21';ctx.strokeRect(lgx-8,lgy-13,138,46);
-  ctx.font='7.5px Mono,monospace';ctx.textAlign='left';ctx.lineWidth=1.4;
-  ctx.strokeStyle='#6b6134';ctx.setLineDash([2,4]);
-  ctx.beginPath();ctx.moveTo(lgx,lgy);ctx.lineTo(lgx+22,lgy);ctx.stroke();
-  ctx.fillStyle='#93a284';ctx.fillText('VIA AÉREA',lgx+28,lgy+2);
-  ctx.strokeStyle='#1d4438';ctx.setLineDash([5,4]);
-  ctx.beginPath();ctx.moveTo(lgx,lgy+11);ctx.lineTo(lgx+22,lgy+11);ctx.stroke();
-  ctx.fillText('VIA MARÍTIMA',lgx+28,lgy+13);
-  ctx.setLineDash([]);ctx.strokeStyle='#2c3a26';
-  ctx.beginPath();ctx.moveTo(lgx,lgy+22);ctx.lineTo(lgx+22,lgy+22);ctx.stroke();
-  ctx.fillText('VIA TERRESTRE',lgx+28,lgy+24);
+  ctx.fillStyle='rgba(7,10,8,.8)';ctx.fillRect(lgx-8,lgy-14,158,62);
+  ctx.strokeStyle='#242d21';ctx.strokeRect(lgx-8,lgy-14,158,62);
+  ctx.font='7.5px Mono,monospace';ctx.textAlign='left';ctx.lineWidth=1;
+  drawVeh(ctx,lgx+10,lgy+0,0,'air','#d8e8ff');ctx.fillStyle='#93a284';
+  ctx.fillText('AERONAVE',lgx+22,lgy+3);
+  drawVeh(ctx,lgx+10,lgy+14,0,'sea','#7fd3c0');ctx.fillStyle='#93a284';
+  ctx.fillText('NAVIO',lgx+22,lgy+17);
+  drawVeh(ctx,lgx+10,lgy+28,0,'land','#e9efe3');ctx.fillStyle='#93a284';
+  ctx.fillText('TERRESTRE',lgx+22,lgy+31);
+  drawVeh(ctx,lgx+10,lgy+42,0,'air','#ff2e3f');ctx.fillStyle='#ff9db0';
+  ctx.fillText('ROTA CONTAMINADA',lgx+22,lgy+45);
   ctx.lineWidth=1;
 
   // telemetria
@@ -464,7 +444,7 @@ function draw(t){
     ctx.fillText(`LAT ${lat>=0?'+':''}${lat.toFixed(1)}° · LON ${lon>=0?'+':''}${lon.toFixed(1)}°`,mouse.x+10,mouse.y-8);
   }
 }
-const MAX_MAJOR_LABELS = 20; // principais cidades do mundo (por população)
+const MAX_MAJOR_LABELS = 30; // principais cidades do mundo (por população)
 function markMajors(){
   if(!S)return;
   const arr=S.regions.slice().sort((a,b)=>b.pop-a.pop);
