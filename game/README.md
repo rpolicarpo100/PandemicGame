@@ -48,15 +48,15 @@ node server.js --simtest dumb|cheap|smart   # teste de balance headless
 3. Vigia a consciência global e a vacina; gere a tua visibilidade.
 4. Objetivo: **infetar não basta — EXTINGUE a humanidade**: satura o contágio (PANDEMIA GLOBAL aos 65% é só um marco) e depois liga a **cadeia letal** (árvore lethality → GLOBAL COLLAPSE) antes que a vacina/cura te travem. Pontuação final 0–1000 por KPIs (ver abaixo).
 
-## Balance (simulador AI vs EXTINÇÃO — 5 reps/célula, 2026-09-07)
+## Balance (simulador AI vs EXTINÇÃO — 10 reps/célula, 2026-09-07)
 
 | Cenário | dumb | cheap | smart |
 |---------|------|-------|-------|
-| silent (400d, humanidade distraída) | 0/5 | 5/5 (d191–222) | 4/5 (d150–234) |
-| rush (260d, alerta) | 0/5 | 0/5 | 4/5 (d141–230) |
-| iron (400d, preparada) | 0/5 | 0/5 | 0/5 |
+| silent (400d, humanidade distraída) | 0/10 | **9/10** (d201–301) | **9/10** (d142–202) |
+| rush (260d, alerta) | 0/10 | 3/10 (d227–244) | **7/10** (d148–208) |
+| iron (400d, preparada) | 0/10 | ~0/10 | ~0/10 (máx ~86% eliminados) |
 
-Estratégia vencedora: **expandir até ~45–65% da humanidade infetada e só então ligar a cadeia letal** (l_resp→l_organ→l_systemic→GLOBAL COLLAPSE + Viral Load). Colapso sanitário (hospitais saturados, cura degradada) decide a fase final. Gradiente claro: não jogar perde sempre; jogar bem ganha em silent/rush; iron é o teto.
+Estratégia vencedora: **expandir até ~45% da humanidade infetada e só então ligar a cadeia letal** (l_resp→l_organ→l_systemic→GLOBAL COLLAPSE + Viral Load). Colapso sanitário (hospitais saturados; cura degradada `1−1.04×mortos%`, piso 2%) decide a fase final; derrotas por pouco (90–94% eliminados) são frequentes. iron é calibrado como **teto quase impossível para IA (~86% máx.)** — reservado a humanos com timing perfeito (ver TESTES-E-RECOMENDACOES.md, R1).
 
 ## Pontuação por jogo (0–1000, KPIs do próprio jogo)
 
