@@ -21,8 +21,8 @@ const ERADIC_DAYS = 14;
 // All spread/detection magnitudes are now RELATIVE (fractions of city pop) so the
 // simulation is scale-invariant for real cities (2.9M Lisboa … 37M Tóquio).
 const CFG = {
-  transBase:   parseFloat(process.env.TRANS_BASE   || '0.07'),  // per-day within-region growth base
-  crossMul:    parseFloat(process.env.CROSS_MUL    || '1.2'),   // cross-region spread multiplier
+  transBase:   parseFloat(process.env.TRANS_BASE   || '0.05'),  // per-day within-region growth base
+  crossMul:    parseFloat(process.env.CROSS_MUL    || '0.8'),   // cross-region spread multiplier
   seedIFrac:   parseFloat(process.env.SEED_I_FRAC  || '0.0015'),// patient-zero = 0.15% of seeded city
   spreadMinF:  parseFloat(process.env.SPREAD_MIN_F || '0.0008'),// min infected fraction to attempt spread
   seedToFrac:  parseFloat(process.env.SEED_TO_FRAC || '0.0002'),// max seed = 0.02% of destination pop
@@ -42,7 +42,7 @@ const SCENARIOS = {
     clock: 260, awarenessMul: 1.20, detectMul: 1.00, startDna: 90, treatMul: 1.0,
     desc: 'Relógio curto e humanidade alerta. Expansão agressiva obrigatória.' },
   iron: { id: 'iron', name: 'IRON WORLD', tag: 'A humanidade está preparada', diff: 3,
-    clock: 400, awarenessMul: 1.50, detectMul: 1.25, startDna: 40, treatMul: 1.4,
+    clock: 400, awarenessMul: 1.85, detectMul: 1.90, startDna: 35, treatMul: 1.6,
     desc: 'Deteção rápida, tratamentos fortes, consciência acelerada. Só para especialistas.' },
   standard: { id: 'standard', name: 'STANDARD', tag: 'Calibração', diff: 2,
     clock: 400, awarenessMul: 1.00, detectMul: 1.00, startDna: 60, treatMul: 1.0,
