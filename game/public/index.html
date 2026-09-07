@@ -161,9 +161,10 @@ aside{width:400px;min-width:330px;background:var(--panel);border-left:1px solid 
     <div class="rd blood"><span class="lb">Acumulada</span><span class="vl" id="hCum">0.0%</span></div>
     <div class="rd blood"><span class="lb">☠ Mortos</span><span class="vl" id="hDead">0</span></div>
     <div class="rd amber"><span class="lb">Ameaça p/ Humanity</span><span class="vl" id="hStage" style="font-size:12px;letter-spacing:.1em">UNAWARE</span></div>
+    <div class="rd bio"><span class="lb">Objetivo</span><span class="vl" id="hObj" style="font-size:11px">EXTINÇÃO ≥95%</span></div>
   </div>
   <div class="speeds">
-    <button data-s="0">⏸</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button>
+    <button data-s="0">⏸</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button><button data-s="8">8×</button>
   </div>
 </header>
 <div id="wire"><span class="wlbl"><i></i>GLOBAL WIRE</span><div class="wt"><span id="wireTxt">A ESTABELECER LIGAÇÃO ÀS AGÊNCIAS…</span></div></div>
@@ -177,7 +178,7 @@ aside{width:400px;min-width:330px;background:var(--panel);border-left:1px solid 
     <div class="overlay" id="scenOverlay">
       <div class="card">
         <h1>Briefing de <em>missão</em></h1>
-        <p>És o agente <b style="color:var(--bio)">VIRUS-01</b>. Objetivo: <b>65% de infeção acumulada</b> antes da erradicação ou da vacina. Seleciona o cenário da operação.</p>
+        <p>És o agente <b style="color:var(--bio)">VIRUS-01</b>. Infetar <b>não basta</b>: o objetivo é <b>EXTINGUIR a humanidade</b> (eliminar ≥95% dos 8,2 mil milhões). O relógio esgota-se — a vacina e a cura correm contra ti.</p>
         <div class="scen-cards" id="scenCards"></div>
       </div>
     </div>
@@ -194,6 +195,7 @@ aside{width:400px;min-width:330px;background:var(--panel);border-left:1px solid 
       <div class="card">
         <div class="verdict-stamp" id="endTitle"></div>
         <p id="endReason"></p>
+        <div id="endScore" style="margin:10px 0 4px;padding:10px;border:1px dashed #3a4a33;text-align:center"></div>
         <div class="stats-grid" id="endStats"></div>
         <button class="btn" onclick="action({type:'newgame'})">Novo briefing</button>
       </div>
@@ -222,7 +224,7 @@ aside{width:400px;min-width:330px;background:var(--panel);border-left:1px solid 
 <script src="/world.js"></script>
 <script>
 let S=null, selected=null, hover=null, mouse={x:0,y:0,inside:false}, lastEvoHtml='', lastLogHtml='';
-const fmt=n=>n>=1000?(n/1000).toFixed(2)+'B':n>=1?n.toFixed(1)+'M':Math.round(n*1000)+'k';
+const fmt=n=>n>=1000?(n/1000).toFixed(2)+' mil M':n>=1?n.toFixed(1)+'M':Math.round(n*1000)+'k';
 const TREE_NAMES={transmission:'SEQ.01 · TRANSMISSÃO',adaptation:'SEQ.02 · ADAPTAÇÃO',lethality:'SEQ.03 · LETALIDADE',
   mutation:'SEQ.04 · MUTAÇÃO',stealth:'SEQ.05 · STEALTH',specialization:'SEQ.06 · ESPECIALIZAÇÃO VIRUS',ultimate:'SEQ.07 · ☣ ULTIMATE'};
 const BUILD_INFO={shadow_spread:['SHADOW SPREAD','Incubação + assintomático + aéreo + mobilidade'],
@@ -276,7 +278,7 @@ function mapBox(){
 function proj(lon,lat){return [MB.x+(lon+180)/360*MB.w, MB.y+(90-lat)/180*MB.h];}
 const px=r=>proj(r.lon,r.lat)[0];
 const py=r=>proj(r.lon,r.lat)[1];
-const rad=r=>5+Math.sqrt(r.pop)*0.8;
+const rad=r=>Math.max(4.2,Math.min(12,3.4+Math.pow(r.pop,0.45)*1.5));
 
 function draw(t){
   ctx.clearRect(0,0,cv.width,cv.height);
@@ -339,28 +341,38 @@ function draw(t){
     ctx.moveTo(MB.x,mouse.y);ctx.lineTo(MB.x+MB.w,mouse.y);ctx.stroke();
   }
 
-  // colónias
+  // colónias — pontos EVIDENTES: halo claro + contorno nítido + brilho ao infetar
   S.regions.forEach((r,idx)=>{
     const x=px(r),y=py(r);
     const frac=r.pop>0?Math.min(1,r.i/r.pop):0;
     const pulse=frac>0?1+0.05*Math.sin(t*2.6+idx*0.8)*(0.4+frac):1;
     const rr=rad(r)*pulse;
-    ctx.shadowBlur=frac>0.01?9+24*frac*(0.7+0.3*Math.sin(t*3+idx)):0;
+    // halo exterior subtil (destaca o ponto do terreno, mesmo nas cidades pequenas)
+    ctx.beginPath();ctx.arc(x,y,rr+3.5,0,Math.PI*2);
+    ctx.fillStyle=frac>0.01?'rgba(255,60,80,.16)':'rgba(205,225,190,.13)';ctx.fill();
+    // corpo do ponto
+    ctx.shadowBlur=frac>0.01?9+26*frac*(0.7+0.3*Math.sin(t*3+idx)):0;
     ctx.shadowColor='#ff2e3f';
     ctx.beginPath();ctx.arc(x,y,rr,0,Math.PI*2);
-    ctx.fillStyle='#131a11';ctx.fill();
+    ctx.fillStyle=frac>0.01?'#2a0a10':'#222e1c';ctx.fill();
     ctx.shadowBlur=0;
-    ctx.strokeStyle=r.identified?'#6b5518':'#3a4a33';ctx.lineWidth=1;ctx.stroke();
+    ctx.lineWidth=1.6;
+    ctx.strokeStyle=frac>0.01?'#ff5a63':(r.identified?'#ffd24d':'#cfe2c4');
+    ctx.stroke();
     if(frac>0){
       const g=ctx.createRadialGradient(x,y,0,x,y,rr);
-      g.addColorStop(0,`rgba(255,46,63,${Math.min(1,0.35+frac)})`);
-      g.addColorStop(1,`rgba(96,10,22,${Math.min(0.9,0.1+frac*0.7)})`);
-      ctx.beginPath();ctx.arc(x,y,rr,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+      g.addColorStop(0,`rgba(255,46,63,${Math.min(1,0.45+frac)})`);
+      g.addColorStop(1,`rgba(140,12,28,${Math.min(0.95,0.2+frac*0.75)})`);
+      ctx.beginPath();ctx.arc(x,y,Math.max(1.5,rr*0.92),0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    } else {
+      // núcleo claro nos pontos saudáveis (legibilidade)
+      ctx.beginPath();ctx.arc(x,y,Math.max(1.2,rr*0.30),0,Math.PI*2);
+      ctx.fillStyle='#b7cfa8';ctx.fill();
     }
     const deadFrac=r.pop>0?r.dead/r.pop:0;
     if(deadFrac>0.001){
-      ctx.beginPath();ctx.arc(x,y,Math.max(1.5,rr*Math.min(0.75,0.25+deadFrac*2)),0,Math.PI*2);
-      ctx.fillStyle='#2c050c';ctx.fill();
+      ctx.beginPath();ctx.arc(x,y,Math.max(1.8,rr*Math.min(0.72,0.22+deadFrac*2)),0,Math.PI*2);
+      ctx.fillStyle='#07090c';ctx.fill();
     }
     if(r.identified){
       ctx.beginPath();ctx.arc(x,y,rr+4,0,Math.PI*2);
@@ -568,6 +580,7 @@ function renderHeader(){
   document.getElementById('hCum').textContent=(100*S.world.cumInf/S.world.pop).toFixed(1)+'%';
   document.getElementById('hDead').textContent=fmt(S.world.dead);
   document.getElementById('hStage').textContent=S.humanity.stageName;
+  if(S.meta.extinctFrac)document.getElementById('hObj').textContent='EXTINÇÃO ≥'+(S.meta.extinctFrac*100)+'%';
   document.getElementById('awarePct').textContent=Math.round(S.humanity.awareness)+'%';
   document.getElementById('awareBar').style.width=S.humanity.awareness+'%';
   document.getElementById('vaxPct').textContent=Math.round(S.humanity.vaccine)+'%';
@@ -696,14 +709,28 @@ function renderOverlays(){
   if(S.result){
     end.style.display='flex';
     const tt=document.getElementById('endTitle');
-    tt.textContent=S.result.win?'Domínio global':'Agente contido';
-    tt.style.color=S.result.win?'var(--bio)':'var(--blood)';
+    tt.textContent=S.result.win?'EXTINÇÃO DA HUMANIDADE':'A HUMANIDADE RESISTIU';
+    tt.style.color=S.result.win?'var(--blood)':'var(--bio)';
     document.getElementById('endReason').textContent=S.result.reason;
     const r=S.result;
+    // painel de pontuação (KPIs -> 0-1000)
+    const sc=r.score||{value:0,label:'—',parts:{}};
+    const P=sc.parts||{};
+    document.getElementById('endScore').innerHTML=`
+      <div style="font-size:9px;letter-spacing:.3em;color:var(--dim)">PONTUAÇÃO FINAL · ${sc.label}</div>
+      <div style="font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--amber);line-height:1.1">
+        ${sc.value}<span style="font-size:14px;color:var(--dim)">/1000</span></div>
+      <div style="display:flex;justify-content:center;gap:14px;margin-top:4px;flex-wrap:wrap;font-size:8.5px;color:var(--dim);letter-spacing:.1em">
+        <span>EXTINÇÃO <b style="color:var(--ink)">${P.extincao||0}</b></span>
+        <span>DESTRUIÇÃO <b style="color:var(--ink)">${P.destruicao||0}</b></span>
+        <span>CONTÁGIO <b style="color:var(--ink)">${P.contagio||0}</b></span>
+        <span>RAPIDEZ <b style="color:var(--ink)">${P.rapidez||0}</b></span>
+        <span>EFICIÊNCIA <b style="color:var(--ink)">${P.eficiencia||0}</b></span>
+      </div>`;
     document.getElementById('endStats').innerHTML=`
       <div>Dias<b>${r.day}</b></div>
       <div>Inf. acumulada<b>${(100*r.cumInf/r.worldPop).toFixed(1)}%</b></div>
-      <div>Mortos<b>${(100*r.dead/r.worldPop).toFixed(2)}%</b></div>
+      <div>☠ Mortos<b>${(100*r.dead/r.worldPop).toFixed(2)}%</b></div>
       <div>Regiões<b>${r.regions}/${S.regions.length}</b></div>
       <div>Evoluções<b>${r.nodes}</b></div>
       <div>Fenótipos<b>${r.builds}</b></div>`;

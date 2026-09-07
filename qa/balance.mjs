@@ -44,7 +44,7 @@ const agentWins = smartWins + cheap.filter(x => x.win).length;
 check('dia de fim dentro do relógio (≤400+5)', parsed.every(x => x.out.day <= 405), 'todos os dias ≤405');
 check('inf% é percentagem válida', parsed.every(x => x.out.cumInfPct >= 0 && x.out.cumInfPct <= 100));
 const agentOk = agentWins >= 1;
-console.log(`\n  ${agentOk ? 'INFO' : '⚠ SINAL DE BALANCE'}: vitórias com estratégia — smart=${smartWins}/2 · cheap=${cheap.filter(x => x.win).length}/2 · dumb=0/2 (amostra pequena; win rates são sinal de calibração, não de bug — comparar com README: cheap ~38%, smart ~60%).`);
+console.log(`\n  ${agentOk ? 'INFO' : '⚠ SINAL DE BALANCE'}: vitórias com estratégia — smart=${smartWins}/2 · cheap=${cheap.filter(x => x.win).length}/2 · dumb=0/2 (amostra pequena; win rates são sinal de calibração, não de bug — ver README: silent cheap 5/5 smart 3-4/5 · rush smart 4/5 · iron ~0/5).`);
 
 const allOk = okAll();
 process.exit(allOk ? 0 : 1);

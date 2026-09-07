@@ -29,15 +29,15 @@ node server.js --simtest dumb|cheap|smart   # teste de balance headless
 
 | SPEC | Implementação |
 |------|---------------|
-| §12 World simulation | 179 cidades REAIS (áreas metropolitanas, nomes verdadeiros) sobre **mapa-mundo real** (Natural Earth 110m, projeção equiretangular) com população, densidade, clima, healthcare, ciência, mobilidade, aeroportos/portos; grafo de rotas por **distância real (haversine)**: land <1300km, sea <9000km (portos), air <13000km (aeroportos) |
-| §14 Modelo temporal | Ticks; **1 tick = 2 s = 1 dia de jogo** (parâmetro de calibração — ver desvios); velocidade 1×/2×/4×/pausa; relógio de 400 dias |
-| §15 Condições de vitória | GLOBAL INFECTION (65% acumulado) · COLLAPSE (45% mortos) · ENDEMIC (≥58% no relógio) · ERRADICAÇÃO · EXTINÇÃO · relógio |
+| §12 World simulation | 179 cidades REAIS (nomes verdadeiros) sobre **mapa-mundo real** (Natural Earth 110m); **população mundial = 8,2 mil M (valor real 2026)** — cada ponto = metrópole + hinterland; densidade, clima, healthcare, ciência, mobilidade, aeroportos/portos reais; grafo por **haversine**: land <1300km, sea <9000km (portos), air <13000km (aeroportos) → 13.426 rotas |
+| §14 Modelo temporal | Ticks; **1 tick = 2 s = 1 dia de jogo**; velocidade 1×/2×/4×/8×/pausa; relógio de 400 dias (cenários: 260–400) |
+| §15 Condições de vitória | **Vitória única: EXTINÇÃO — mortos ≥ 95% da humanidade.** Derrota: erradicação, vacina+contágio eliminado, ou relógio esgotado (a humanidade resistiu) |
 | §6/§7 Evolução | 37 nós em 7 árvores (custo + benefício + downside + tags + pré-requisitos), dados em `data.js` |
 | §8 Emergent builds | Rule engine de tags: 6 builds (SHADOW SPREAD, GLOBAL COLLAPSE, IMMORTAL, VECTOR STORM, SILENT TIDE, URBAN PLAGUE) |
 | §9 Events | Evento de mutação a cada ~35–55 dias com 3 opções de trade-off |
 | §10 DNA | Ganho por novas infeções, presença e descoberta de regiões; gasto em evoluções |
 | §11 Humanity AI | Pipeline DETECTION → … → VACCINE; estágios por awareness; containment/tratamentos/fechos de rotas; **adaptação comportamental limitada** (controlo aeroportuário se o jogador abusa de rotas aéreas; investigação reforçada contra stealth) |
-| World wire | **GLOBAL WIRE**: ticker de notícias vivo + aba REGISTO GLOBAL (notícias com fontes OMS/WIRE/PRESS/AVIA-CIV/IMO-WIRE/LAB-WIRE, ambientes por nível de alerta, marcos de mortos/infetados/vacina, fechos de rotas). Mapa com **legenda de vias** (aérea/marítima/terrestre), realce das rotas da região em hover/seleção e lista de ligações por tipo na aba AMOSTRA |
+| World wire | **GLOBAL WIRE**: ticker de notícias vivo + aba REGISTO GLOBAL (notícias com fontes OMS/WIRE/PRESS/AVIA-CIV/IMO-WIRE/LAB-WIRE, ambientes por nível de alerta, marcos de mortos/infetados/vacina, fechos de rotas). Mapa com pontos **evidentes** (halo+contorno, vermelho pulsante ao infetar), veículos animados por rota (vermelhos quando a rota está contaminada), rótulos top-30 por população e lista de ligações por tipo na aba AMOSTRA |
 | §39 Server authority | Toda a simulação no servidor (Node, zero deps); cliente só apresenta e envia intenções; estado por SSE |
 | §14.3 Anti-softlock | Relógio limite + fade-out estocástico de surtos minúsculos |
 
@@ -46,17 +46,21 @@ node server.js --simtest dumb|cheap|smart   # teste de balance headless
 1. Clica numa região para iniciar o surto (clima, densidade e rotas importam).
 2. Ganha DNA com a propagação e compra evoluções (aba EVOLUÇÃO).
 3. Vigia a consciência global e a vacina; gere a tua visibilidade.
-4. Objetivo: 65% de infeção acumulada antes de erradicação/vacina.
+4. Objetivo: **infetar não basta — EXTINGUE a humanidade**: satura o contágio (PANDEMIA GLOBAL aos 65% é só um marco) e depois liga a **cadeia letal** (árvore lethality → GLOBAL COLLAPSE) antes que a vacina/cura te travem. Pontuação final 0–1000 por KPIs (ver abaixo).
 
-## Balance (simulador AI, 2026-09-07 — aperto v2 após feedback "fácil demais")
+## Balance (simulador AI vs EXTINÇÃO — 5 reps/célula, 2026-09-07)
 
-| Bot | Estratégia | Win rate | Dias até vitória |
-|-----|------------|----------|------------------|
-| dumb | sem evoluções | 0% | — |
-| cheap | nó mais barato | ~38% | ~200 |
-| smart | mobilidade/clima/**stealth cedo** | ~60% | ~230 |
+| Cenário | dumb | cheap | smart |
+|---------|------|-------|-------|
+| silent (400d, humanidade distraída) | 0/5 | 5/5 (d191–222) | 4/5 (d150–234) |
+| rush (260d, alerta) | 0/5 | 0/5 | 4/5 (d141–230) |
+| iron (400d, preparada) | 0/5 | 0/5 | 0/5 |
 
-Aperto v2: deteção +15%, containment +5pp, awareness +, vacina/rollout mais rápidos, DNA base 0.14/dia (era 0.20), spread +4 DNA (era +6), nós de transmissão baratos +5–10 DNA. O mundo agora reage visivelmente (wire, fechos, corrida à vacina). Gradiente: jogar com stealth e leitura do wire ganha; spam de transmissão é coin-flip; não jogar perde. Parâmetros a calibrar com jogadores reais.
+Estratégia vencedora: **expandir até ~45–65% da humanidade infetada e só então ligar a cadeia letal** (l_resp→l_organ→l_systemic→GLOBAL COLLAPSE + Viral Load). Colapso sanitário (hospitais saturados, cura degradada) decide a fase final. Gradiente claro: não jogar perde sempre; jogar bem ganha em silent/rush; iron é o teto.
+
+## Pontuação por jogo (0–1000, KPIs do próprio jogo)
+
+`vitória(EXTINÇÃO) 350` + `destruição: 350×mortos%` + `contágio: 100×infetados%` + `rapidez: 100×(1−dia/relógio) se vitória` + `eficiência: 100×(1−fenótipos/40)`, multiplicado por dificuldade (`1+(diff−1)×0.15`; iron ×1.30). Rótulos: 950+ EXTINÇÃO TOTAL · 800+ HOLOCAUSTO GLOBAL · 650+ APOCALIPSE · 450+ PANDEMIA GRAVE · 250+ SURTO MUNDIAL · <250 SURTO CONTIDO. O breakdown aparece no ecrã final e fica no ledger da dev console.
 
 ## Desvios e notas
 

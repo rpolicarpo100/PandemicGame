@@ -13,9 +13,9 @@ const dev = require('./lib/dev.js');
 const PORT = process.env.PORT || 3000;
 const TICK_MS = 2000;          // 1 tick = 1 in-game day (calibration parameter)
 const CLOCK_LIMIT = 400;       // days (default; scenarios override)
-const CUM_WIN = parseFloat(process.env.CUM_WIN || '0.65');   // cumulative infected fraction -> agent win
-const DEATH_WIN = 0.45;        // deaths fraction -> agent win
-const ENDURANCE = 0.58;        // at clock end: >= this = endemic win
+// Objetivo (SPEC revisão): NÃO basta infetar — é preciso EXTINGUIR a humanidade.
+// Vitória única: mortos >= EXTINCT_FRAC da população mundial (default 95%).
+const EXTINCT_FRAC = parseFloat(process.env.EXTINCT_FRAC || '0.95');
 const ERADIC_DAYS = 14;
 // ---- calibration knobs (env-overridable; tuned against the real-city graph) ----
 // All spread/detection magnitudes are now RELATIVE (fractions of city pop) so the
@@ -91,7 +91,7 @@ let G = null;
 dev.init({ phase: () => G && G.phase, day: () => G && G.day });
 
 function baseStats() {
-  return { trans: CFG.transBase, leth: 0.0012, stealth: 0, cureResist: 0, cross: 1.0, dnaGain: 1.0,
+  return { trans: CFG.transBase, leth: 0.0032, stealth: 0, cureResist: 0, cross: 1.0, dnaGain: 1.0,
            costMod: 1.0, detectMod: 1.0, dense: 1.0, sparse: 1.0, incub: false,
            climate: { hot: 0.55, cold: 0.50, arid: 0.50, humid: 0.60, temperate: 0.75 } };
 }
@@ -223,9 +223,17 @@ function tick() {
     const df = meta.density > 0.55 ? stats.dense : (meta.density < 0.3 ? stats.sparse : 1);
     const growth = stats.trans * cf * df * (1 - containment(r));
     let newI = Math.min(r.i * growth + Math.min(r.s, r.i * 0.005), r.s);
-    const effLeth = stats.leth * (1 - 0.35 * Math.min(1, G.treatTech + r.treatment));
+    const frac = meta.pop > 0 ? Math.min(1, r.i / meta.pop) : 0;
+    // colapso sanitário: hospitais saturados aceleram a morte à medida que a
+    // cidade (frac) e o mundo (cumFrac) ficam tomados — torna a EXTINÇÃO possível.
+    const cumFrac = Math.min(1, (G.cumInf + newI) / WORLD_POP);
+    const collapse = (1 + 1.0 * frac) * (1 + 2.0 * cumFrac);
+    const effLeth = stats.leth * (1 - 0.35 * Math.min(1, G.treatTech + r.treatment)) * collapse;
     const deaths = Math.min(r.i * effLeth, r.i);
-    const cureRate = (0.004 + 0.060 * r.treatment * scMul('treatMul', 1)) * (1 - stats.cureResist);
+    // colapso dos cuidados: com a humanidade em agonia (muitos mortos), a cura
+    // deixa de acompanhar — a morte torna-se irreversível nos estádios finais.
+    const careCollapse = Math.max(0.05, 1 - 0.97 * (G.regions.reduce((z, x) => z + x.dead, 0) / WORLD_POP));
+    const cureRate = (0.004 + 0.060 * r.treatment * scMul('treatMul', 1)) * (1 - stats.cureResist) * careCollapse;
     const cured = Math.min(Math.max(r.i - deaths, 0) * cureRate, r.i - deaths);
     r.i = Math.max(0, r.i + newI - deaths - cured);
     if (r.i > 0 && r.s > 0 && r.i < r.s * 0.0004 && Math.random() < 0.10) r.i = 0; // outbreak fizzles out (fração da cidade)
@@ -237,7 +245,6 @@ function tick() {
     // detection — FRACTION-based (scale-invariant for real city sizes):
     // renormaliza cada cidade para a escala de uma "região de referência" (70M),
     // para que a deteção/identificação responda na mesma fração infetada
-    const frac = meta.pop > 0 ? Math.min(1, r.i / meta.pop) : 0;
     const newFrac = meta.pop > 0 ? Math.min(frac, newI / meta.pop) : 0;
     const deadFrac = meta.pop > 0 ? Math.min(frac, deaths / meta.pop) : 0;
     const REF = 70; // M habitantes (região de referência ~ antiga escala)
@@ -270,6 +277,8 @@ function tick() {
         const seed = Math.min(rb.s * CFG.seedToFrac, Math.max(rb.s * CFG.seedToMinF, rb.s * srcFrac * 0.02));
         const wasClean = rb.i <= 0;
         rb.i += seed;
+        G.cumInf += seed;
+        rb.s = Math.max(0, rb.s - seed);   // sementes = novos infetados (consumem susceptíveis)
         G.routeCounts[e.type]++;
         if (wasClean) {
           log(`Propagação para ${mb.name} via rota ${e.type === 'air' ? 'aérea' : e.type === 'sea' ? 'marítima' : 'terrestre'}`, 'spread');
@@ -281,14 +290,19 @@ function tick() {
   }
 
   // DNA income
-  G.dna += (totalNewI * 0.05 + 0.14) * stats.dnaGain;
+  G.dna += (totalNewI * 0.090 + 0.20) * stats.dnaGain;
 
-  // marcos globais (wire)
-  milestone('dead1', totalDead >= 1, 'GLOBAL WIRE', 'Pandemia ultrapassa 1 milhão de mortos', 'panic');
-  milestone('dead10', totalDead >= 10, 'GLOBAL WIRE', '10 milhões de mortos; luto global', 'panic');
-  milestone('dead100', totalDead >= 100, 'GLOBAL WIRE', '100 milhões de mortos; crise civilizacional', 'panic');
+  // marcos globais (wire) — em fração da população mundial (8,2 mil M)
+  milestone('deadp1', totalDead >= 0.001 * WORLD_POP, 'GLOBAL WIRE', '0,1% da humanidade já morreu', 'panic');
+  milestone('deadp10', totalDead >= 0.01 * WORLD_POP, 'GLOBAL WIRE', '1% da humanidade já morreu; luto global', 'panic');
+  milestone('deadp100', totalDead >= 0.10 * WORLD_POP, 'GLOBAL WIRE', '10% da humanidade já morreu; crise civilizacional', 'panic');
+  milestone('deadp25', totalDead >= 0.25 * WORLD_POP, 'GLOBAL WIRE', '25% da humanidade eliminada', 'panic');
+  milestone('deadp50', totalDead >= 0.50 * WORLD_POP, 'GLOBAL WIRE', 'Metade da humanidade eliminada', 'panic');
+  milestone('deadp75', totalDead >= 0.75 * WORLD_POP, 'GLOBAL WIRE', '75% da humanidade eliminada — agonia final', 'panic');
   milestone('cum25', G.cumInf >= 0.25 * WORLD_POP, 'GLOBAL WIRE', 'Um quarto da humanidade já foi infetada', 'panic');
   milestone('cum50', G.cumInf >= 0.50 * WORLD_POP, 'GLOBAL WIRE', 'Metade do mundo já contraiu o agente', 'panic');
+  milestone('cum65', G.cumInf >= 0.65 * WORLD_POP, 'GLOBAL WIRE', 'PANDEMIA GLOBAL — dois terços infetados. Resta matar.', 'panic');
+  milestone('cum85', G.cumInf >= 0.85 * WORLD_POP, 'GLOBAL WIRE', 'O contágio é total — agora só a morte decide.', 'panic');
 
   // Humanity AI pipeline
   const identified = G.regions.filter(r => r.identified);
@@ -359,31 +373,61 @@ function tick() {
     log(`Evento: ${ev.name}`, 'event');
   }
 
-  // win / loss
-  if (totalI <= 0 && G.day > 20) return endGame(false, 'EXTINÇÃO — o agente morreu antes de se espalhar.');
-  if (G.cumInf >= CUM_WIN * WORLD_POP) return endGame(true, 'GLOBAL INFECTION — o agente infetou o mundo.');
-  if (totalDead >= DEATH_WIN * WORLD_POP) return endGame(true, 'COLLAPSE — a humanidade colapsou.');
+  // win / loss — o objetivo é EXTINGUIR a humanidade (mortos >= EXTINCT_FRAC)
+  if (totalI <= 0 && G.day > 20) return endGame(false, 'O AGENTE MORREU — a humanidade sobreviveu intacta.');
+  if (totalDead >= EXTINCT_FRAC * WORLD_POP) return endGame(true, 'EXTINÇÃO — a humanidade foi extinta.');
   if (totalI < 1e-4 && G.day > 30 && identified.length > 0) {
     G.eradic++;
     if (G.eradic >= ERADIC_DAYS) return endGame(false, 'ERRADICAÇÃO — o agente foi eliminado.');
   } else G.eradic = 0;
   const clockLimit = scMul('clock', CLOCK_LIMIT);
   if (G.day >= clockLimit) {
-    if (G.cumInf >= ENDURANCE * WORLD_POP) return endGame(true, 'ENDEMIC — o agente estabeleceu-se antes do relógio.');
-    return endGame(false, 'A HUMANIDADE RESISTIU até ao fim do relógio.');
+    const deadPct = (100 * totalDead / WORLD_POP).toFixed(1);
+    return endGame(false, `A HUMANIDADE RESISTIU — ${deadPct}% eliminados, insuficiente.`);
   }
+}
+
+// ---- PONTUAÇÃO (0-1000) por jogo, com base nos KPIs do mesmo ----
+// vitória(extinção) 350 · destruição(mortos%) 350 · contágio(infetados%) 100 ·
+// rapidez 100 · eficiência(1 - fenótipos/40) 100  × multiplicador de dificuldade.
+function scoreGame(win) {
+  const clock = scMul('clock', CLOCK_LIMIT);
+  const deadFrac = Math.min(1, G.regions.reduce((s, r) => s + r.dead, 0) / WORLD_POP);
+  const cumFrac = Math.min(1, G.cumInf / WORLD_POP);
+  const eff = Math.min(1, (G.owned.length + G.buildsTriggered.length) / 40);
+  const parts = {
+    extincao: win ? 350 : 0,
+    destruicao: Math.round(350 * deadFrac),
+    contagio: Math.round(100 * cumFrac),
+    rapidez: win ? Math.round(100 * Math.max(0, 1 - G.day / clock)) : 0,
+    eficiencia: Math.round(100 * (1 - eff)),
+  };
+  const diff = (G.scenario && SCENARIOS[G.scenario]) ? SCENARIOS[G.scenario].diff : 1;
+  const mult = 1 + (diff - 1) * 0.15;
+  const base = parts.extincao + parts.destruicao + parts.contagio + parts.rapidez + parts.eficiencia;
+  const value = Math.round(Math.min(1000, base * mult));
+  let label = 'SURTO CONTIDO';
+  if (value >= 950) label = 'EXTINÇÃO TOTAL';
+  else if (value >= 800) label = 'HOLOCAUSTO GLOBAL';
+  else if (value >= 650) label = 'APOCALIPSE';
+  else if (value >= 450) label = 'PANDEMIA GRAVE';
+  else if (value >= 250) label = 'SURTO MUNDIAL';
+  return { value, max: 1000, label, mult: Math.round(mult * 100) / 100, parts };
 }
 
 function endGame(win, reason) {
   G.phase = 'ended';
   const regionsHit = G.regions.filter(r => r.i > 0 || r.dead > 0 || r.identified).length;
+  const score = scoreGame(win);
   G.result = {
     win, reason, day: G.day,
     cumInf: G.cumInf, dead: G.regions.reduce((s, r) => s + r.dead, 0),
     regions: regionsHit, nodes: G.owned.length, builds: G.buildsTriggered.length,
     worldPop: WORLD_POP, stage: STAGE_NAMES[G.stage], vaccine: G.vaccine,
+    extinctFrac: EXTINCT_FRAC,
+    score,
   };
-  log(`FIM: ${reason}`, win ? 'win' : 'lose');
+  log(`FIM: ${reason} — score ${score.value}/1000 (${score.label})`, win ? 'win' : 'lose');
   dev.onEndGame(G);
 }
 
@@ -398,7 +442,8 @@ function doAction(body) {
       G.startRegion = body.region;
       G.startedAt = Date.now();
       const sm = rmeta(body.region);
-      rstate(body.region).i = Math.min(sm.pop, Math.max(sm.pop * 0.0002, sm.pop * CFG.seedIFrac));
+      const p0 = Math.min(sm.pop, Math.max(sm.pop * 0.0002, sm.pop * CFG.seedIFrac));
+      rstate(body.region).i = p0; G.cumInf += p0;
       G.phase = 'running';
       log(`Paciente zero em ${rmeta(body.region).name}.`, 'player');
       dev.onSeed(G);
@@ -443,7 +488,7 @@ function doAction(body) {
       return { ok: true };
     }
     case 'speed': {
-      G.speed = [0, 1, 2, 4].includes(body.value) ? body.value : G.speed;
+      G.speed = [0, 1, 2, 4, 8].includes(body.value) ? body.value : G.speed;
       return { ok: true, speed: G.speed };
     }
     case 'newgame': {
@@ -494,13 +539,14 @@ function publicState() {
     scenarios: Object.values(SCENARIOS).filter(x => x.id !== 'standard'),
     meta: { nodes: NODES, edges: EDGES, stageNames: STAGE_NAMES,
             clockLimit: scMul('clock', CLOCK_LIMIT),
-            cumWin: CUM_WIN, deathWin: DEATH_WIN, tickMs: TICK_MS },
+            extinctFrac: EXTINCT_FRAC, tickMs: TICK_MS },
   };
 }
 
 // ---------- sim test (headless bots, balance pacing) ----------
-const SMART_PRIO = ['t_mob1','a_heat','a_cold','t_air1','s_incub','s_asym','a_humid','a_dry','t_air2',
-  's_lowdet','t_contact1','sp_rapid','a_urban','t_water1','m_adaptive','a_extreme','t_animal1','t_vector1','a_rural','m_rate'];
+const SMART_PRIO = ['t_mob1','a_heat','a_cold','t_air1','s_incub','s_asym','m_rate','a_humid','a_dry',
+  'a_urban','sp_rapid','s_lowdet','t_air2','t_contact1','t_water1','m_adaptive','a_extreme','m_controlled',
+  't_animal1','t_vector1','a_rural'];
 
 function simTest(strategy) {
   strategy = strategy || process.argv[3] || 'cheap';
@@ -518,18 +564,34 @@ function simTest(strategy) {
   doAction({ type: 'seed', region });
   let days = 0;
   while (G.phase === 'running' && days < CLOCK_LIMIT + 5) {
-    if (G.pendingEvent) doAction({ type: 'eventChoice', option: Math.floor(Math.random() * 3) });
+    if (G.pendingEvent) doAction({ type: 'eventChoice', option: strategy === 'smart' ? 0 : Math.floor(Math.random() * 3) });
+    const availAll = () => NODES
+      .filter(n => !G.owned.includes(n.id) && n.req.every(r => G.owned.includes(r)))
+      .sort((a, b) => a.cost - b.cost);
     if (strategy === 'smart') {
-      const next = SMART_PRIO.find(id => {
-        const n = NODES.find(x => x.id === id);
-        return n && !G.owned.includes(id) && n.req.every(r => G.owned.includes(r)) &&
-               G.dna >= Math.round(n.cost * G.stats.costMod) + 10;
-      });
+      // fase 1: expansão barata; fase 2 (>=45% da humanidade infetada): cadeia letal
+      const cumF = G.cumInf / WORLD_POP;
+      let next = null;
+      if (cumF >= 0.45) {
+        const LETH = ['l_resp', 'l_organ', 'l_systemic', 'u_collapse', 'sp_load', 'l_collapse', 'l_neuro'];
+        next = LETH.find(id => {
+          const n = NODES.find(x => x.id === id);
+          return n && !G.owned.includes(id) && n.req.every(r => G.owned.includes(r)) &&
+                 G.dna >= Math.round(n.cost * G.stats.costMod) + 10;
+        });
+      }
+      if (!next) {
+        const prio = SMART_PRIO.find(id => {
+          const n = NODES.find(x => x.id === id);
+          return n && !G.owned.includes(id) && n.req.every(r => G.owned.includes(r)) &&
+                 G.dna >= Math.round(n.cost * G.stats.costMod) + 10;
+        });
+        if (prio) next = prio;
+      }
+      if (!next) { const a = availAll(); if (a.length && G.dna >= a[0].cost * G.stats.costMod + 15) next = a[0].id; }
       if (next) doAction({ type: 'evolve', node: next });
     } else if (strategy !== 'dumb') {
-      const avail = NODES
-        .filter(n => !G.owned.includes(n.id) && n.req.every(r => G.owned.includes(r)))
-        .sort((a, b) => a.cost - b.cost);
+      const avail = availAll();
       if (avail.length && G.dna >= avail[0].cost * G.stats.costMod + 15) {
         doAction({ type: 'evolve', node: avail[0].id });
       }
@@ -537,10 +599,11 @@ function simTest(strategy) {
     tick();
     days++;
     if (process.env.SIM_DEBUG && (days % 25 === 0 || G.phase !== 'running')) {
+      const deadP = 100 * G.regions.reduce((z,x)=>z+x.dead,0) / WORLD_POP;
       const sr = G.regions.find(x=>x.id===G.startRegion);
       const top = G.regions.slice().sort((a,b)=>b.i-a.i)[0];
       const topM = top ? rmeta(top.id) : null;
-      console.log('DBG|' + JSON.stringify({ day: G.day, cumPct: +(100*G.cumInf/WORLD_POP).toFixed(1), infPct: +(100*(G.regions.reduce((s,x)=>s+x.i,0))/WORLD_POP).toFixed(1), nId: G.regions.filter(x=>x.identified).length, awareness: +G.awareness.toFixed(0), stage: G.stage, vaccine: +G.vaccine.toFixed(0), dna: +G.dna.toFixed(0), seedDet: sr ? +sr.detection.toFixed(0) : null, seedIFracPct: sr ? +(100*sr.i/(rmeta(sr.id)||{pop:1}).pop).toFixed(2) : null, topI: top ? +top.i.toFixed(3)+'M' : null, topDet: top ? +top.detection.toFixed(0) : null, topName: topM ? topM.name : null }));
+      console.log('DBG|' + JSON.stringify({ day: G.day, deadPct: +deadP.toFixed(2), cumPct: +(100*G.cumInf/WORLD_POP).toFixed(1), infPct: +(100*(G.regions.reduce((s,x)=>s+x.i,0))/WORLD_POP).toFixed(1), nId: G.regions.filter(x=>x.identified).length, awareness: +G.awareness.toFixed(0), stage: G.stage, vaccine: +G.vaccine.toFixed(0), dna: +G.dna.toFixed(0), seedDet: sr ? +sr.detection.toFixed(0) : null, seedIFracPct: sr ? +(100*sr.i/(rmeta(sr.id)||{pop:1}).pop).toFixed(2) : null, topI: top ? +top.i.toFixed(3)+'M' : null, topDet: top ? +top.detection.toFixed(0) : null, topName: topM ? topM.name : null }));
     }
   }
   const r = G.result || { win: null, reason: 'timeout/crash', day: days };
@@ -550,6 +613,7 @@ function simTest(strategy) {
     cumInfPct: +(100 * (r.cumInf || 0) / WORLD_POP).toFixed(2),
     deadPct: +(100 * (r.dead || 0) / WORLD_POP).toFixed(2),
     regions: r.regions, nodes: r.nodes, builds: r.builds, stage: r.stage, vaccine: +(r.vaccine || 0).toFixed(1),
+    score: r.score ? r.score.value : null,
   }));
 }
 

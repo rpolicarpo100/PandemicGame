@@ -130,6 +130,7 @@ function recordGame(G, kind) {
     sec: G.startedAt ? Math.round((Date.now() - G.startedAt) / 1000) : null,
     start: G.startRegion || null,
     win: kind === 'win', reason: (G.result && G.result.reason) || kind,
+    score: (G.result && G.result.score && G.result.score.value) || 0,
   };
   S.ledger.push(rec);
   if (S.ledger.length > 300) S.ledger.shift();

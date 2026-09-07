@@ -1,12 +1,13 @@
-// PANDEMIC EVOLUTION — e2e full game via HTTP real (bot policy simples, speed 4)
+// PANDEMIC EVOLUTION — e2e full game via HTTP real (bot policy simples, speed 8)
 // Joga uma partida até ao fim pelo protocolo real (POST /action + GET /state)
 // e confirma que a dev console regista a partida no ledger/telemetria.
+// Nota: vitória = EXTINÇÃO (mortos >=95%); a partida pode durar ~200+ dias.
 import { check, okAll, jget, jpost, sleep } from './lib.mjs';
 
-const SCENARIO = process.env.E2E_SCENARIO || 'silent';   // silent ~200s, rush ~130s no speed 4
-const WALL = 260000;                                      // 260s max por partida
+const SCENARIO = process.env.E2E_SCENARIO || 'silent';   // silent ~100s no speed 8
+const WALL = 300000;                                      // 300s max por partida (extinção ~d200+)
 
-console.log(`\n▶ E2E GAME — partida completa via HTTP (cenário ${SCENARIO}, speed 4)\n`);
+console.log(`\n▶ E2E GAME — partida completa via HTTP (cenário ${SCENARIO}, speed 8)\n`);
 
 const before = (await jget('/api/dev/overview')).json;
 
@@ -17,7 +18,7 @@ let st = (await jget('/state')).json;
 const cand = st.regions.find(x => x.airport && (x.climate === 'temperate' || x.climate === 'humid'));
 res = await jpost('/action', { type: 'seed', region: cand.id });
 check(`seed ${cand.id}`, res.json && res.json.ok === true);
-await jpost('/action', { type: 'speed', value: 4 });
+await jpost('/action', { type: 'speed', value: 8 });
 
 const t0 = Date.now();
 let day = 0, actions = 0, buys = 0;
@@ -33,11 +34,14 @@ while (Date.now() - t0 < WALL) {
     actions++;
     continue;
   }
-  // bot simples: compra evolução barata sempre que houver folga, prioridade stealth/transmissão
+  // bot: expansão barata até ~45% infetados; depois vira a cadeia letal (objetivo: EXTINÇÃO)
   const owned = new Set(st.owned || []);
   const prefs = ['s_incub', 's_asym', 's_lowdet', 'a_heat', 't_mob1', 'a_cold', 't_air1', 'sp_rapid', 'a_urban'];
+  const lethal = ['l_resp', 'l_organ', 'l_systemic', 'u_collapse', 'sp_load'];
+  const cumF = st.world && st.world.pop ? st.world.cumInf / st.world.pop : 0;
+  const list = cumF >= 0.45 ? lethal.concat(prefs) : prefs;
   let n = null;
-  for (const pid of prefs) {
+  for (const pid of list) {
     const nn = st.meta.nodes.find(x => x.id === pid && !owned.has(pid) && x.req.every(r => owned.has(r)));
     if (nn && st.dna >= Math.round(nn.cost * 1.2)) { n = nn; break; }
   }
