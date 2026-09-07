@@ -6,6 +6,7 @@ Protótipo jogável do core game, para validar **fun** antes de investir em PvP/
 
 * `/` — **homepage** futurista com connector Phantom (deteção real de `window.phantom.solana`; sem simulação de wallet) e cartões de modos PvE/PvP/EMBATE/Ranked
 * `/play` — o jogo
+* `/dev` — **DEV CONSOLE** (dashboard do dev: KPIs económicos/usuários/código, wallet real, auto-crítica) — ver `DEV-CONSOLE.md` na raiz
 
 ## Cenários PvE (variedade de modos dentro do PvE)
 

@@ -8,6 +8,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { REGIONS, NODES, BUILDS, EVENTS } = require('./data.js');
+const dev = require('./lib/dev.js');
 
 const PORT = process.env.PORT || 3000;
 const TICK_MS = 2000;          // 1 tick = 1 in-game day (calibration parameter)
@@ -72,6 +73,7 @@ const EDGES = [];
 
 // ---------- game state ----------
 let G = null;
+dev.init({ phase: () => G && G.phase, day: () => G && G.day });
 
 function baseStats() {
   return { trans: 0.10, leth: 0.0012, stealth: 0, cureResist: 0, cross: 1.0, dnaGain: 1.0,
@@ -359,6 +361,7 @@ function endGame(win, reason) {
     worldPop: WORLD_POP, stage: STAGE_NAMES[G.stage], vaccine: G.vaccine,
   };
   log(`FIM: ${reason}`, win ? 'win' : 'lose');
+  dev.onEndGame(G);
 }
 
 // ---------- actions ----------
@@ -370,9 +373,12 @@ function doAction(body) {
       if (!G.scenario) return { error: 'choose a scenario first' };
       if (!rstate(body.region)) return { error: 'bad region' };
       G.startRegion = body.region;
+      G.startedAt = Date.now();
       rstate(body.region).i = 0.03;
       G.phase = 'running';
       log(`Paciente zero em ${rmeta(body.region).name}.`, 'player');
+      dev.onSeed(G);
+      dev.onSeedScenario(G.scenario);
       return { ok: true };
     }
     case 'evolve': {
@@ -386,6 +392,7 @@ function doAction(body) {
       G.dna -= cost;
       G.owned.push(n.id);
       n.tags.forEach(t => G.tags.add(t));
+      dev.onEvolve(G, n.id, cost);
       // emergent builds
       for (const b of BUILDS) {
         if (G.buildsTriggered.includes(b.id)) continue;
@@ -408,6 +415,7 @@ function doAction(body) {
       log(`Evento ${G.pendingEvent.name}: ${opt.label} (${opt.desc})`, 'event');
       G.pendingEvent = null;
       G.nextEventDay = G.day + 35 + Math.floor(Math.random() * 20);
+      dev.onEventChoice();
       return { ok: true };
     }
     case 'speed': {
@@ -416,6 +424,7 @@ function doAction(body) {
     }
     case 'newgame': {
       const sc = body.scenario && SCENARIOS[body.scenario] ? body.scenario : null;
+      dev.onNewGame(G, sc);
       G = newGame(sc);
       return { ok: true, scenario: G.scenario };
     }
@@ -523,6 +532,21 @@ function broadcast() {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  dev.countReq(req, res, url);
+
+  // ---------- dev console (sync path for /dev, async for /api/dev/*) ----------
+  if (req.method === 'GET' && url.pathname === '/dev') {
+    if (!dev.authOk(req, url)) { res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('401 — DEV_ACCESS_KEY necessário (?key=…)'); }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(fs.readFileSync(path.join(__dirname, 'public', 'dev.html')));
+  }
+  if (url.pathname.startsWith('/api/dev')) {
+    dev.apiRoute(req, res, url).catch(err => {
+      try { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: String(err && err.message || err) })); } catch (_) {}
+    });
+    return;
+  }
+
   if (req.method === 'GET' && url.pathname === '/world.js') {
     res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' });
     return res.end(fs.readFileSync(path.join(__dirname, 'public', 'world.js')));
@@ -549,6 +573,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && url.pathname === '/events') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
     res.write(`data: ${JSON.stringify(publicState())}\n\n`);
+    dev.sseOpen(req, res);
     clients.add(res);
     req.on('close', () => clients.delete(res));
     return;
@@ -575,10 +600,14 @@ const server = http.createServer((req, res) => {
 G = newGame();
 
 if (require.main === module) {
+  dev.start();
   setInterval(() => {
     if (!G || G.phase !== 'running' || G.pendingEvent) return;
     G.acc += 500 * G.speed;
-    while (G.acc >= TICK_MS) { tick(); G.acc -= TICK_MS; if (G.phase !== 'running') break; }
+    const t0 = Date.now();
+    let ran = false;
+    while (G.acc >= TICK_MS) { tick(); ran = true; G.acc -= TICK_MS; if (G.phase !== 'running') break; }
+    if (ran) { dev.loopMs(Date.now() - t0); dev.tickMark(); }
     broadcast();
   }, 500);
   setInterval(() => { for (const res of clients) { try { res.write(': hb\n\n'); } catch (_) {} } }, 15000);
@@ -586,6 +615,8 @@ if (require.main === module) {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Pandemic Evolution vertical slice on http://0.0.0.0:${PORT}`);
   });
+  process.once('SIGTERM', () => { dev.save(); process.exit(0); });
+  process.once('SIGINT', () => { dev.save(); process.exit(0); });
 }
 
 module.exports = { newGame, doAction, tick, publicState, simTest, getGame: () => G, setGame: g => { G = g; } };

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>PANDEMIC EVOLUTION — DEV CONSOLE</title>
+<style>
+@font-face { font-family:'Display'; src:url('/fonts/display.woff2') format('woff2'); font-weight:800; font-display:swap; }
+@font-face { font-family:'Mono'; src:url('/fonts/mono.woff2') format('woff2'); font-weight:400; font-display:swap; }
+@font-face { font-family:'Mono'; src:url('/fonts/mono700.woff2') format('woff2'); font-weight:700; font-display:swap; }
+:root{
+  --bg:#070a08; --panel:#0c110c; --panel2:#10160f; --line:#242d21; --line2:#313c2d;
+  --ink:#e9efe3; --dim:#7d8a74; --bio:#c8ff3f; --amber:#ffb000; --blood:#ff2e3f; --cy:#7fe3ff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:13px/1.55 'Mono',ui-monospace,monospace;overflow-x:hidden;padding-bottom:90px}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E")}
+a{color:var(--cy);text-decoration:none;border-bottom:1px dotted var(--line2)}
+a:hover{color:var(--bio)}
+.wrap{max-width:1280px;margin:0 auto;padding:0 22px}
+.hazard{height:6px;background:repeating-linear-gradient(-45deg,var(--amber) 0 11px,#0b0b07 11px 22px)}
+.stencil{font-family:'Display',sans-serif;font-weight:800;text-transform:uppercase;line-height:.95}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tt{font-size:clamp(20px,3vw,30px);letter-spacing:.02em}
+.tt .b{color:var(--bio)}
+.sub{font-size:10px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;margin-top:4px}
+.clock{text-align:right;font-size:11px;color:var(--dim)}
+.clock b{color:var(--bio);font-weight:700}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--bio);box-shadow:0 0 8px var(--bio);animation:blink 1.6s infinite;vertical-align:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.grid{display:grid;gap:12px;margin-top:14px}
+.kpi-grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr))}
+.section{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line);padding:26px 0 8px;margin-top:6px}
+.section .no{color:var(--bio);font-size:10px;letter-spacing:.25em}
+.section h2{font-family:'Display',sans-serif;font-weight:800;font-size:19px;text-transform:uppercase;letter-spacing:.04em}
+.section .hint{color:var(--dim);font-size:10px;letter-spacing:.18em;text-transform:uppercase;margin-left:auto}
+.card{background:var(--panel);border:1px solid var(--line);padding:11px 13px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;top:0;left:0;width:26px;height:2px;background:var(--bio);opacity:.85}
+.card .k{font-size:9px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;display:flex;justify-content:space-between;gap:6px}
+.card .v{font-size:clamp(17px,2.4vw,24px);font-weight:700;margin-top:6px;font-family:'Display',sans-serif;letter-spacing:.01em;line-height:1}
+.card .v small{font-size:11px;color:var(--dim);font-family:'Mono';font-weight:400}
+.card .d{font-size:10px;color:var(--dim);margin-top:6px}
+.good{color:var(--bio)} .warn{color:var(--amber)} .bad{color:var(--blood)} .info{color:var(--cy)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th{color:var(--dim);text-transform:uppercase;font-size:9px;letter-spacing:.2em;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line2)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:var(--panel2)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;padding:2px 7px;border:1px solid var(--line2)}
+.pill.win{color:var(--bio);border-color:var(--bio)} .pill.lose{color:var(--blood);border-color:var(--blood)}
+.pill.ab{color:var(--amber);border-color:var(--amber)}
+.bar-row{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:11px}
+.bar-row .lbl{width:110px;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.1em;flex:none}
+.bar-track{flex:1;background:var(--panel2);height:12px;position:relative}
+.bar-fill{height:100%;background:var(--bio);opacity:.9}
+.bar-fill.amber{background:var(--amber)} .bar-fill.red{background:var(--blood)} .bar-fill.cy{background:var(--cy)}
+canvas.spark{width:100%;height:52px;display:block;background:var(--panel2)}
+.wallet{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.addr{font-size:12px;color:var(--bio);word-break:break-all;background:var(--panel2);border:1px solid var(--line2);padding:8px 10px;flex:1;min-width:200px}
+.msg-list li{list-style:none;padding:7px 0 7px 18px;border-bottom:1px solid var(--line);position:relative;font-size:11.5px;color:var(--dim)}
+.msg-list li::before{content:"▸";position:absolute;left:0;color:var(--amber)}
+.msg-list li b{color:var(--ink);font-weight:700}
+.flag{font-size:11.5px;padding:8px 10px;border:1px solid var(--line2);background:var(--panel);margin:6px 0;color:var(--dim)}
+.flag .tag{display:inline-block;min-width:74px;margin-right:8px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber)}
+.score-big{font-family:'Display',sans-serif;font-size:44px;color:var(--bio);line-height:1}
+.score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-top:8px}
+.score-grid div{font-size:10px;color:var(--dim);border:1px solid var(--line);padding:5px 6px}
+.score-grid b{display:block;font-size:14px;color:var(--ink)}
+.badge{display:inline-block;font-size:9px;letter-spacing:.22em;padding:3px 8px;margin-left:6px;text-transform:uppercase;vertical-align:2px}
+.badge.on{background:var(--bio);color:#0a0d06} .badge.off{background:var(--panel2);color:var(--dim);border:1px solid var(--line2)}
+.offline-note{max-width:640px;margin:120px auto;text-align:center;color:var(--dim);font-size:13px;line-height:1.9}
+.offline-note h1{font-size:26px;margin-bottom:18px}
+.offline-note .ic{font-size:44px;margin-bottom:10px;color:var(--amber)}
+.foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:10px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase}
+.small-note{font-size:10px;color:var(--dim);margin-top:6px;letter-spacing:.06em}
+.toolbtn{font-family:'Mono';background:none;border:1px solid var(--line2);color:var(--dim);padding:7px 10px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;margin-top:10px}
+.toolbtn:hover{color:var(--bio);border-color:var(--bio)}
+.hidden{display:none}
+.live-in{color:var(--bio)} .live-out{color:var(--amber)}
+</style>
+</head>
+<body>
+<div class="hazard"></div>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div class="tt stencil">PANDEMIC EVOLUTION <span class="b">// DEV CONSOLE</span></div>
+      <div class="sub">Telemetria real · servidor autoritativo · zero dependências</div>
+    </div>
+    <div class="clock">
+      <span class="dot" id="liveDot"></span><span id="liveState">LIGAR A API…</span><br>
+      <span id="clock">—</span> · <b id="uptime">—</b><br>
+      <span id="ver" style="font-size:10px;color:var(--dim)">node —</span>
+    </div>
+  </div>
+
+  <div id="offline" class="offline-note hidden">
+    <div class="ic">⚠</div>
+    <h1 class="stencil">DEV CONSOLE OFFLINE</h1>
+    Não consegui ligar à API (<code id="offApi">/api/dev/overview</code>).
+    Este ficheiro só mostra dados quando servido pelo servidor de jogo
+    (<code>/dev</code>). Se abriste o ficheiro diretamente, corre
+    <code>node server.js</code> e visita <code>/dev</code> no browser.
+  </div>
+
+  <div id="dash" class="hidden">
+    <!-- ================= SCORE + KPIs GERAIS ================= -->
+    <div class="grid-3" style="margin-top:16px">
+      <div class="card" style="grid-column:span 1">
+        <div class="k">HEALTH SCORE <span class="badge" id="envBadge">local</span></div>
+        <div style="display:flex;align-items:center;gap:16px;margin-top:8px">
+          <div class="score-big" id="score">–</div>
+          <div style="flex:1">
+            <div class="score-grid" id="scoreParts"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="k">JOGO AGORA <span class="info" id="phasePill">—</span></div>
+        <div class="v" id="phaseTxt">—</div>
+        <div class="d" id="phaseDay">—</div>
+      </div>
+      <div class="card">
+        <div class="k">SESSÕES AO VIVO (SSE)</div>
+        <div class="v"><span id="sseActive">0</span> <small>/ pico <span id="ssePeak">0</span></small></div>
+        <div class="d"><span id="sseToday">0</span> hoje · <span id="sseTotal">0</span> total · média <span id="sseAvg">–</span></div>
+      </div>
+    </div>
+
+    <!-- ================= 1 · ECONÓMICO ================= -->
+    <div class="section"><span class="no">KPI-01</span><h2>ECONÓMICO — IN-GAME DNA</h2><span class="hint">partidas PvE · por cenário</span></div>
+    <div class="kpi-grid grid">
+      <div class="card"><div class="k">DNA GASTO (total)</div><div class="v" id="eDna">0</div><div class="d">em evoluções compradas</div></div>
+      <div class="card"><div class="k">EVOLUÇÕES COMPRADAS</div><div class="v" id="eEvo">0</div><div class="d">nós de genoma adquiridos</div></div>
+      <div class="card"><div class="k">PARTIDAS TERMINADAS</div><div class="v" id="eEnd">0</div><div class="d">fim natural (win/lose)</div></div>
+      <div class="card"><div class="k">WIN RATE GERAL</div><div class="v" id="eWr">–</div><div class="d">vitórias do agente</div></div>
+      <div class="card"><div class="k">ABANDONADAS</div><div class="v" id="eAb">0</div><div class="d">jogos a correr fechados</div></div>
+      <div class="card"><div class="k">DNA MÉDIO POR NÓ</div><div class="v" id="eCpn">–</div><div class="d">custo efetivo médio</div></div>
+    </div>
+    <div class="grid-2" style="margin-top:12px">
+      <div class="card">
+        <div class="k">VITÓRIAS / DERROTAS POR CENÁRIO</div>
+        <div style="margin-top:10px" id="scenBars"></div>
+      </div>
+      <div class="card">
+        <div class="k">TOP EVOLUÇÕES (DNA QUEIMADO)</div>
+        <div style="margin-top:10px" id="nodeBars"></div>
+      </div>
+    </div>
+
+    <!-- ================= 2 · UTILIZADORES ================= -->
+    <div class="section"><span class="no">KPI-02</span><h2>UTILIZADORES & TRÁFEGO</h2><span class="hint">IPs anonimizados · sem PII</span></div>
+    <div class="kpi-grid grid">
+      <div class="card"><div class="k">VISTAS / (HOME)</div><div class="v" id="uHome">0</div><div class="d">página de entrada</div></div>
+      <div class="card"><div class="k">VISTAS /PLAY</div><div class="v" id="uPlay">0</div><div class="d">sessões de jogo</div></div>
+      <div class="card"><div class="k">VISTAS /DEV</div><div class="v" id="uDev">0</div><div class="d">deste console</div></div>
+      <div class="card"><div class="k">DURAÇÃO MÉDIA HOJE</div><div class="v" id="uDur">–</div><div class="d">sessão SSE</div></div>
+      <div class="card"><div class="k">RETORNOS</div><div class="v" id="uRet">0</div><div class="d">IPs com ≥2 sessões</div></div>
+      <div class="card"><div class="k">PICO SIMULTÂNEO</div><div class="v" id="uPeak">0</div><div class="d">SSE em paralelo</div></div>
+    </div>
+    <div class="grid-2" style="margin-top:12px">
+      <div class="card">
+        <div class="k">REQ/MIN — ÚLTIMA HORA</div>
+        <canvas class="spark" id="sparkHttp" style="margin-top:8px"></canvas>
+      </div>
+      <div class="card">
+        <div class="k">SESSÕES ATIVAS/MIN — ÚLTIMA HORA</div>
+        <canvas class="spark" id="sparkSse" style="margin-top:8px"></canvas>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="k">ÚLTIMAS SESSÕES</div>
+      <div style="overflow-x:auto;margin-top:6px"><table id="sessTable"><thead><tr><th>início</th><th>duração</th><th>ip (anon)</th><th>cliente</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <!-- ================= 3 · CÓDIGO & OPS ================= -->
+    <div class="section"><span class="no">KPI-03</span><h2>CÓDIGO & OPERAÇÃO</h2><span class="hint">métricas do processo e do repo</span></div>
+    <div class="kpi-grid grid">
+      <div class="card"><div class="k">REQUISIÇÕES HTTP</div><div class="v" id="cReq">0</div><div class="d" id="cErr">0 erros 4xx/5xx</div></div>
+      <div class="card"><div class="k">LATÊNCIA P95</div><div class="v" id="cP95">–</div><div class="d">respostas completas</div></div>
+      <div class="card"><div class="k">CICLO SIM (méd)</div><div class="v" id="cLoop">–</div><div class="d">tick 2s · bucket 500ms</div></div>
+      <div class="card"><div class="k">MEMÓRIA RSS</div><div class="v" id="cRss">–</div><div class="d">heap <span id="cHeap">–</span></div></div>
+      <div class="card"><div class="k">LINHAS DE CÓDIGO</div><div class="v" id="cLoc">–</div><div class="d"><span id="cFiles">–</span> ficheiros · <span id="cKb">–</span> KB · 0 deps</div></div>
+      <div class="card"><div class="k">GITHUB REPO</div><div class="v" id="cGit">–</div><div class="d" id="cGitD">a consultar API…</div></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="k">LOC POR FICHEIRO (game/)</div>
+      <div style="margin-top:8px" id="locBars"></div>
+    </div>
+
+    <!-- ================= 4 · WALLET DEV ================= -->
+    <div class="section"><span class="no">KPI-04</span><h2>WALLET DO DEV — SOLANA</h2><span class="hint">leitura on-chain real (mainnet)</span></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="k">ENDEREÇO</div>
+        <div class="wallet" style="margin-top:10px">
+          <div class="addr" id="wAddr">…</div>
+          <button class="toolbtn" id="wCopy">copiar</button>
+        </div>
+        <div class="small-note">Explorers: <a id="wSol" href="#" target="_blank" rel="noopener">Solscan</a> · <a id="wEx" href="#" target="_blank" rel="noopener">Solana Explorer</a></div>
+      </div>
+      <div class="card">
+        <div class="k">SALDO SOL (REAL)</div>
+        <div class="v" id="wBal" style="font-size:clamp(22px,3vw,34px)">…</div>
+        <div class="d" id="wSrc">—</div>
+        <div class="small-note" id="wNote">Contrato $PEVO ainda não emitido — roadmap Phase 7 (devnet primeiro). Gate de acesso: 10.000 $PEVO (ECONOMY-v1.0).</div>
+      </div>
+    </div>
+
+    <!-- ================= 5 · REGISTO & AUTO-CRÍTICA ================= -->
+    <div class="section"><span class="no">KPI-05</span><h2>REGISTO DE PARTIDAS</h2><span class="hint">últimos 15</span></div>
+    <div class="card"><div style="overflow-x:auto"><table id="ledTable"><thead><tr><th>hora</th><th>cenário</th><th>resultado</th><th class="num">dia</th><th class="num">inf %</th><th class="num">mortos %</th><th class="num">nós</th><th class="num">DNA fim</th><th class="num">duração</th></tr></thead><tbody></tbody></table></div></div>
+
+    <div class="section"><span class="no">KPI-06</span><h2>AUTO-CRÍTICA & LIMITES CONHECIDOS</h2><span class="hint">gerado pelo servidor em runtime</span></div>
+    <div id="flags" style="margin-top:10px"></div>
+
+    <div class="section"><span class="no">TOOLS</span><h2>QA / AUTO-TESTE</h2><span class="hint">qa/ no repositório</span></div>
+    <div class="card" style="font-size:11.5px;color:var(--dim);line-height:2">
+      <div>▸ <code>qa/smoke.mjs</code> — matriz de endpoints, SSE, ações válidas/inválidas, schemas (exit≠0 à falha)</div>
+      <div>▸ <code>qa/balance.mjs</code> — bots headless <code>dumb|cheap|smart</code> (server.js --simtest) para pacing económico</div>
+      <div>▸ <code>qa/concurrency.mjs</code> — N sessões SSE simultâneas + prova do limite single-world</div>
+      <div>▸ <code>qa/ui.mjs</code> — Playwright: home → play → dev, erros de consola e screenshots em <code>qa/out/shots</code></div>
+      <div class="small-note" style="margin-top:8px">Run: <code>node qa/run-all.mjs</code> (gera <code>qa/out/QA-REPORT.md</code>)</div>
+    </div>
+
+    <div class="foot">
+      <span>PANDEMIC EVOLUTION · DEV CONSOLE · <a href="/">home</a> · <a href="/play">jogo</a> · <a href="/dev">/dev</a></span>
+      <span id="foot">—</span>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const KEY = new URLSearchParams(location.search).get('key') || '';
+const API = '/api/dev/overview' + (KEY ? '?key=' + encodeURIComponent(KEY) : '');
+let D = null, timers = [];
+
+function fmtClock(ts){ return new Date(ts).toLocaleTimeString('pt-PT'); }
+function fmtUp(sec){
+  if (sec == null) return '—';
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  return (h? h+'h ' : '') + (h||m? m+'m ' : '') + s+'s';
+}
+function fmtDur(sec){ if (sec==null) return '—'; return sec<60 ? sec+'s' : Math.floor(sec/60)+'m'+ (sec%60? ' '+sec%60+'s':'') ; }
+function fmtVal(x){ if (x==null || isNaN(x)) return '—'; return Number(x).toLocaleString('pt-PT',{maximumFractionDigits:2}); }
+
+function spark(cv, data){
+  const c = $(cv), w = c.width = c.clientWidth*2, h = c.height = c.clientHeight*2;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  const max = Math.max(1, ...data);
+  ctx.beginPath();
+  data.forEach((v,i)=>{ const x = i/(data.length-1||1)*w, y = h - (v/max)*(h-6) - 3; i? ctx.lineTo(x,y) : ctx.moveTo(x,y); });
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--bio').trim(); ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle = 'rgba(200,255,63,.10)';
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--dim').trim();
+  ctx.font = '10px mono'; ctx.fillText('pico ' + max, 6, 12);
+}
+
+function scenBars(){
+  const ss = D.game.scenarioStats || {}; const el = $('scenBars'); el.innerHTML='';
+  const rows = Object.entries(ss).sort((a,b)=> b[1].starts - a[1].starts).slice(0,6);
+  if (!rows.length){ el.innerHTML='<div class="small-note">sem partidas iniciadas ainda — joga uma ronda em /play.</div>'; return; }
+  const max = Math.max(...rows.map(r=>Math.max(r[1].wins,r[1].losses,r[1].starts||0)),1);
+  for (const [name, s] of rows){
+    const w = s.wins||0, l = s.losses||0, st = s.starts||0;
+    const row = document.createElement('div'); row.className='bar-row';
+    row.innerHTML = '<span class="lbl">'+name.toUpperCase()+'</span>'+
+      '<div class="bar-track"><div class="bar-fill" style="width:'+(100*w/max)+'%;background:var(--bio)"></div>'+
+      '<div class="bar-fill red" style="width:'+(100*l/max)+'%;opacity:.55"></div></div>'+
+      '<span class="num" style="width:150px;font-size:10px">'+(w||0)+'V / '+(l||0)+'D · '+st+' inícios</span>';
+    el.appendChild(row);
+  }
+}
+function nodeBars(){
+  const pn = D.game.perNode||{}; const el = $('nodeBars'); el.innerHTML='';
+  const rows = Object.entries(pn).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  if (!rows.length){ el.innerHTML='<div class="small-note">nenhuma evolução registada ainda.</div>'; return; }
+  const max = Math.max(...rows.map(r=>r[1]),1);
+  for (const [id, n] of rows){
+    const row = document.createElement('div'); row.className='bar-row';
+    row.innerHTML = '<span class="lbl">'+id+'</span>'+
+      '<div class="bar-track"><div class="bar-fill cy" style="width:'+(100*n/max)+'%"></div></div>'+
+      '<span class="num" style="width:60px">×'+n+'</span>';
+    el.appendChild(row);
+  }
+}
+function locBars(){
+  const loc = (D.code.local&&D.code.local.loc)||{}; const el = $('locBars'); el.innerHTML='';
+  const rows = Object.entries(loc).filter(([,n])=>n).sort((a,b)=>b[1]-a[1]);
+  const max = Math.max(...rows.map(r=>r[1]),1);
+  for (const [f,n] of rows){
+    const row = document.createElement('div'); row.className='bar-row';
+    row.innerHTML = '<span class="lbl">'+f+'</span>'+
+      '<div class="bar-track"><div class="bar-fill" style="width:'+(100*n/max)+'%"></div></div>'+
+      '<span class="num" style="width:60px">'+n+'</span>';
+    el.appendChild(row);
+  }
+}
+function ledRows(){
+  const tb = $('ledTable').querySelector('tbody'); tb.innerHTML='';
+  if (!D.ledger.length){ tb.innerHTML='<tr><td colspan="9" style="color:var(--dim)">sem partidas terminadas no registo.</td></tr>'; return; }
+  for (const g of D.ledger){
+    const tr = document.createElement('tr');
+    const kl = g.kind==='win'?'<span class="pill win">VITÓRIA</span>':g.kind==='lose'?'<span class="pill lose">DERROTA</span>':'<span class="pill ab">ABANDONO</span>';
+    tr.innerHTML = '<td>'+fmtClock(g.t)+'</td><td>'+(g.scenario||'—').toUpperCase()+'</td><td>'+kl+'<div style="font-size:9px;color:var(--dim)">'+String(g.reason||'').slice(0,44)+'</div></td>'+
+      '<td class="num">'+g.day+'</td><td class="num">'+fmtVal(g.infPct)+'%</td><td class="num">'+fmtVal(g.deadPct)+'%</td>'+
+      '<td class="num">'+g.nodes+'</td><td class="num">'+fmtVal(g.dna)+'</td><td class="num">'+fmtDur(g.sec)+'</td>';
+    tb.appendChild(tr);
+  }
+}
+function sessRows(){
+  const tb = $('sessTable').querySelector('tbody'); tb.innerHTML='';
+  if (!D.sessions.length){ tb.innerHTML='<tr><td colspan="4" style="color:var(--dim)">sem sessões registadas (abre /play numa janela).</td></tr>'; return; }
+  for (const s of D.sessions.slice(0,10)){
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>'+fmtClock(s.t0)+'</td><td>'+fmtDur(s.sec)+'</td><td style="color:var(--dim)">'+s.ip+'</td><td style="color:var(--dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+s.ua+'</td>';
+    tb.appendChild(tr);
+  }
+}
+function flags(){
+  const el = $('flags'); el.innerHTML='';
+  for (const f of (D.findings||[])){
+    const d = document.createElement('div'); d.className='flag';
+    d.innerHTML = '<span class="tag">⚠ CONHECIDO</span>'+f;
+    el.appendChild(d);
+  }
+}
+function scoreParts(){
+  const p = D.score.parts; const names = {uptime:'uptime',quality:'qualidade',perf:'performance',traction:'tração',economy:'economia',sec:'segurança'};
+  $('scoreParts').innerHTML = Object.entries(p).map(([k,v])=>'<div>'+names[k]+'<b>'+v+'</b></div>').join('');
+}
+function kpis(){
+  const g = D.game, h = D.http, s = D.sse, o = D.ops;
+  $('eDna').textContent = fmtVal(g.dnaSpent); $('eEvo').textContent = fmtVal(g.evolves);
+  $('eEnd').textContent = fmtVal(g.ended);
+  $('eWr').textContent = g.ended ? fmtVal(100*g.wins/Math.max(1,g.wins+g.losses))+'%' : '–';
+  $('eAb').textContent = fmtVal(g.abandoned);
+  $('eCpn').textContent = g.evolves? fmtVal(Math.round(g.dnaSpent/g.evolves)) : '–';
+  $('uHome').textContent = fmtVal(D.views.home); $('uPlay').textContent = fmtVal(D.views.play); $('uDev').textContent = fmtVal(D.views.dev);
+  $('uDur').textContent = fmtDur(s.avgSecToday); $('uRet').textContent = fmtVal(s.returningIps);
+  $('uPeak').textContent = fmtVal(s.peak);
+  $('cReq').textContent = fmtVal(h.total);
+  $('cErr').textContent = h.serverErr + ' 5xx · ' + h.clientErr + ' 4xx' + (h.serverErr?' ⚠':'');
+  $('cErr').className = h.serverErr ? 'd bad' : 'd';
+  $('cP95').textContent = h.p95Ms!=null? h.p95Ms+' ms' : '—';
+  $('cLoop').textContent = o.loopAvgMs!=null? o.loopAvgMs+' ms' : '—';
+  $('cRss').textContent = o.mem.rssMb!=null? fmtVal(o.mem.rssMb)+' MB' : '—';
+  $('cHeap').textContent = o.mem.heapMb!=null? fmtVal(o.mem.heapMb)+' MB' : '—';
+  const loc = D.code.local; $('cLoc').textContent = loc? fmtVal(loc.totalLines):'—';
+  $('cFiles').textContent = loc? fmtVal(loc.files):'—'; $('cKb').textContent = loc? fmtVal(loc.kb):'—';
+  const r = D.code.repo;
+  if (r && r.ok){ $('cGit').textContent = '★ '+fmtVal(r.stars)+' · '+fmtVal(r.forks)+' forks';
+    $('cGitD').textContent = (r.issues||0)+' issues abertas · push '+ (r.pushedAt? new Date(r.pushedAt).toLocaleDateString('pt-PT'):'—'); }
+  else { $('cGit').textContent = '—'; $('cGitD').textContent = r && r.err ? 'API github: '+r.err : 'a consultar API…'; }
+  // sse
+  $('sseActive').textContent = s.active; $('ssePeak').textContent = s.peak;
+  $('sseToday').textContent = s.sessionsToday; $('sseTotal').textContent = s.sessionsTotal;
+  $('sseAvg').textContent = fmtDur(s.avgSec);
+  // jogo
+  const ph = D.phase || {};
+  $('phasePill').textContent = String(ph.phase||'—').toUpperCase();
+  $('phaseTxt').textContent = ph.phase==='running' ? 'A CORRER (1 mundo partilhado)' : ph.phase==='setup' ? 'AGUARDA PRIMEIRA SEMEADURA' : ph.phase==='ended' ? 'PARTIDA TERMINADA' : ph.phase;
+  $('phaseDay').textContent = 'dia ' + (ph.day!=null? ph.day:'—') + ' · cenário ' + String(D.game.scenarioStats && (ph.scenario||'standard')).toUpperCase();
+  $('score').textContent = D.score.value;
+  $('uptime').textContent = fmtUp(D.uptimeSec);
+}
+function wallet(){
+  const w = D.wallet; if (!w){ return; }
+  $('wAddr').textContent = w.address;
+  $('wSol').href = 'https://solscan.io/account/'+w.address;
+  $('wEx').href = 'https://explorer.solana.com/address/'+w.address;
+  $('wBal').textContent = w.balanceSol!=null ? fmtVal(w.balanceSol)+' <small style="font-size:12px">SOL</small>' : '— (RPC offline)';
+  $('wSrc').textContent = w.fetchedAt ? 'mainnet via ' + (w.source||'—') + ' · ' + fmtClock(w.fetchedAt) : 'sem leitura';
+  $('wBal').className = w.balanceSol!=null ? 'v' : 'v warn';
+}
+function render(){
+  const now = new Date(); $('clock').textContent = now.toLocaleString('pt-PT');
+  $('ver').textContent = 'node ' + D.node + ' · ' + String(D.env.rv||'local') + (D.env.region? ' · '+D.env.region:'');
+  $('envBadge').textContent = D.env.rv ? 'render' : 'local';
+  $('envBadge').className = 'badge ' + (D.env.rv ? 'on' : 'off');
+  $('liveDot').style.background = '#c8ff3f'; $('liveState').textContent = 'LIVE · refresh 4s'; $('liveState').classList.add('live-in');
+  kpis(); scenBars(); nodeBars(); locBars(); ledRows(); sessRows(); flags(); scoreParts(); wallet();
+  spark('sparkHttp', D.rings.http); spark('sparkSse', D.rings.sse);
+  $('foot').textContent = 'última leitura ' + fmtClock(D.t) + ' · boot ' + fmtClock(D.boot) + ' · telemetria volátil (memória+tmp)';
+}
+async function tick(){
+  try{
+    const r = await fetch(API, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    D = await r.json();
+    $('offline').classList.add('hidden'); $('dash').classList.remove('hidden');
+    render();
+  }catch(e){
+    $('dash').classList.add('hidden'); $('offline').classList.remove('hidden');
+    $('offApi').textContent = API;
+  }
+}
+$('wCopy').addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText($('wAddr').textContent); $('wCopy').textContent='copiado ✓'; setTimeout(()=>$('wCopy').textContent='copiar',1200); }catch(_){ $('wCopy').textContent='sem clipboard'; } });
+setInterval(tick, 4000); tick();
+window.addEventListener('resize', ()=>{ if(D) render(); });
+</script>
+</body>
+</html>

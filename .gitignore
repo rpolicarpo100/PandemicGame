@@ -1,0 +1,9 @@
+# telemetria / outputs locais
+qa/out/
+game/data/
+*.log
+.DS_Store
+
+# git: node_modules
+node_modules/
+qa/node_modules/
