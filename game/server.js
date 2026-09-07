@@ -13,10 +13,25 @@ const dev = require('./lib/dev.js');
 const PORT = process.env.PORT || 3000;
 const TICK_MS = 2000;          // 1 tick = 1 in-game day (calibration parameter)
 const CLOCK_LIMIT = 400;       // days (default; scenarios override)
-const CUM_WIN = 0.65;          // cumulative infected fraction -> agent win
+const CUM_WIN = parseFloat(process.env.CUM_WIN || '0.65');   // cumulative infected fraction -> agent win
 const DEATH_WIN = 0.45;        // deaths fraction -> agent win
 const ENDURANCE = 0.58;        // at clock end: >= this = endemic win
 const ERADIC_DAYS = 14;
+// ---- calibration knobs (env-overridable; tuned against the real-city graph) ----
+// All spread/detection magnitudes are now RELATIVE (fractions of city pop) so the
+// simulation is scale-invariant for real cities (2.9M Lisboa … 37M Tóquio).
+const CFG = {
+  transBase:   parseFloat(process.env.TRANS_BASE   || '0.07'),  // per-day within-region growth base
+  crossMul:    parseFloat(process.env.CROSS_MUL    || '1.2'),   // cross-region spread multiplier
+  seedIFrac:   parseFloat(process.env.SEED_I_FRAC  || '0.0015'),// patient-zero = 0.15% of seeded city
+  spreadMinF:  parseFloat(process.env.SPREAD_MIN_F || '0.0008'),// min infected fraction to attempt spread
+  seedToFrac:  parseFloat(process.env.SEED_TO_FRAC || '0.0002'),// max seed = 0.02% of destination pop
+  seedToMinF:  parseFloat(process.env.SEED_MIN_F   || '0.00002'),// min seed fraction of destination
+  detScale:    parseFloat(process.env.DET_SCALE    || '1.0'),   // humanity detection responsiveness
+  awareMul:    parseFloat(process.env.AWARE_MUL    || '1.2'),   // global awareness gain multiplier
+  vaccineRate: parseFloat(process.env.VACCINE_RATE || '1.2'),   // vaccine R&D speed multiplier
+  vaxMassRate: parseFloat(process.env.VAX_MASS_RATE|| '1.0'),   // mass vaccination speed multiplier
+};
 
 // PvE scenario variants (variety inside PvE — SPEC §13)
 const SCENARIOS = {
@@ -76,7 +91,7 @@ let G = null;
 dev.init({ phase: () => G && G.phase, day: () => G && G.day });
 
 function baseStats() {
-  return { trans: 0.10, leth: 0.0012, stealth: 0, cureResist: 0, cross: 1.0, dnaGain: 1.0,
+  return { trans: CFG.transBase, leth: 0.0012, stealth: 0, cureResist: 0, cross: 1.0, dnaGain: 1.0,
            costMod: 1.0, detectMod: 1.0, dense: 1.0, sparse: 1.0, incub: false,
            climate: { hot: 0.55, cold: 0.50, arid: 0.50, humid: 0.60, temperate: 0.75 } };
 }
@@ -213,19 +228,26 @@ function tick() {
     const cureRate = (0.004 + 0.060 * r.treatment * scMul('treatMul', 1)) * (1 - stats.cureResist);
     const cured = Math.min(Math.max(r.i - deaths, 0) * cureRate, r.i - deaths);
     r.i = Math.max(0, r.i + newI - deaths - cured);
-    if (r.i > 0 && r.i < 0.004 && Math.random() < 0.12) r.i = 0; // outbreak fizzles out
+    if (r.i > 0 && r.s > 0 && r.i < r.s * 0.0004 && Math.random() < 0.10) r.i = 0; // outbreak fizzles out (fração da cidade)
     r.s = Math.max(0, r.s - newI);
     r.dead += deaths;
     G.cumInf += newI;
     totalNewI += newI; totalI += r.i; totalDead += r.dead;
 
-    // detection
+    // detection — FRACTION-based (scale-invariant for real city sizes):
+    // renormaliza cada cidade para a escala de uma "região de referência" (70M),
+    // para que a deteção/identificação responda na mesma fração infetada
+    const frac = meta.pop > 0 ? Math.min(1, r.i / meta.pop) : 0;
+    const newFrac = meta.pop > 0 ? Math.min(frac, newI / meta.pop) : 0;
+    const deadFrac = meta.pop > 0 ? Math.min(frac, deaths / meta.pop) : 0;
+    const REF = 70; // M habitantes (região de referência ~ antiga escala)
+    const iS = frac * REF, nS = newFrac * REF, dS = deadFrac * REF;
     let visibility = Math.max(0.05, 1 - stats.stealth) * stats.detectMod;
     if (stats.incub && G.day < 60) visibility *= 0.6;
     const detGain =
-      (2.9 * Math.log10(1 + r.i * 20) * (0.35 + meta.healthcare) +
-       newI * 3.5 * (0.35 + meta.healthcare) +
-       deaths * 35) * visibility * scMul('detectMul', 1) + 0.08;
+      (2.9 * Math.log10(1 + iS * 20) * (0.35 + meta.healthcare) +
+       nS * 3.5 * (0.35 + meta.healthcare) +
+       dS * 35) * visibility * scMul('detectMul', 1) * CFG.detScale + 0.08;
     r.detection += detGain * (G.adapt.boostInvestigation ? 1.25 : 1);
     if (r.detNews < 1 && r.detection >= 30) { r.detNews = 1; news('WIRE', `Urgências de ${meta.name} relatam síndrome respiratória atípica`, 'wire'); }
     if (r.detNews < 2 && r.detection >= 65) { r.detNews = 2; news('WIRE', `${meta.name}: hospitais sob pressão; autoridades negam surto`, 'wire'); }
@@ -241,12 +263,13 @@ function tick() {
     for (const [srcId, dstId] of [[e.a, e.b], [e.b, e.a]]) {
       const ra = rstate(srcId), rb = rstate(dstId);
       const ma = rmeta(srcId), mb = rmeta(dstId);
-      if (ra.i < 0.08 || rb.s < 0.01) continue;
-      let p = Math.min(0.5, e.cap * stats.cross * (ra.i / ma.pop) * 2.5 * routeFactor(e.type, ra, rb));
+      const srcFrac = ma.pop > 0 ? ra.i / ma.pop : 0;
+      if (srcFrac < CFG.spreadMinF || rb.s <= 0) continue;
+      let p = Math.min(0.5, e.cap * stats.cross * srcFrac * CFG.crossMul * routeFactor(e.type, ra, rb));
       if (Math.random() < p) {
-        const seed = Math.min(0.015, Math.max(0.002, ra.i * 0.001));
+        const seed = Math.min(rb.s * CFG.seedToFrac, Math.max(rb.s * CFG.seedToMinF, rb.s * srcFrac * 0.02));
         const wasClean = rb.i <= 0;
-        rb.i += Math.min(seed, rb.s);
+        rb.i += seed;
         G.routeCounts[e.type]++;
         if (wasClean) {
           log(`Propagação para ${mb.name} via rota ${e.type === 'air' ? 'aérea' : e.type === 'sea' ? 'marítima' : 'terrestre'}`, 'spread');
@@ -272,7 +295,7 @@ function tick() {
   if (identified.length) {
     const idPop = identified.reduce((s, r) => s + rmeta(r.id).pop, 0);
     const avgSci = identified.reduce((s, r) => s + rmeta(r.id).science * rmeta(r.id).pop, 0) / idPop;
-    G.awareness = Math.min(100, G.awareness + (0.35 + (idPop / WORLD_POP) * 3.8) * (0.4 + avgSci) * scMul('awarenessMul', 1) * (G.adapt.boostInvestigation ? 1.15 : 1));
+    G.awareness = Math.min(100, G.awareness + (0.35 + (idPop / WORLD_POP) * 3.8) * CFG.awareMul * (0.4 + avgSci) * scMul('awarenessMul', 1) * (G.adapt.boostInvestigation ? 1.15 : 1));
   }
   let newStage = 0;
   for (let s = 1; s < STAGE_THRESH.length - 1; s++) if (G.awareness >= STAGE_THRESH[s]) newStage = s;
@@ -293,7 +316,7 @@ function tick() {
   if (G.stage >= 6) {
     const avgSci = REGIONS.reduce((s, r) => s + r.science, 0) / REGIONS.length;
     const urgency = 1 + 2 * (G.cumInf / WORLD_POP);
-    G.vaccine = Math.min(100, G.vaccine + 1.0 * (0.4 + avgSci) * urgency * (G.vaccine >= 100 ? 1.3 : 1));
+    G.vaccine = Math.min(100, G.vaccine + 1.0 * CFG.vaccineRate * (0.4 + avgSci) * urgency * (G.vaccine >= 100 ? 1.3 : 1));
     milestone('vax25', G.vaccine >= 25, 'LAB-WIRE', 'Candidatos a vacina entram em ensaios clínicos', 'good');
     milestone('vax50', G.vaccine >= 50, 'LAB-WIRE', 'Vacina: eficácia preliminar anunciada; produção em escala', 'good');
     milestone('vax75', G.vaccine >= 75, 'LAB-WIRE', 'Vacina aprovada em emergência; distribuição começa', 'good');
@@ -301,7 +324,7 @@ function tick() {
   if (G.stage >= 7) {
     for (const r of G.regions) {
       const meta = rmeta(r.id);
-      const rate = r.s * 0.024 * (0.4 + meta.science);
+      const rate = r.s * 0.024 * CFG.vaxMassRate * (0.4 + meta.science);
       const v = Math.min(r.s, rate);
       r.vaccinated += v; r.s -= v;
     }
@@ -374,7 +397,8 @@ function doAction(body) {
       if (!rstate(body.region)) return { error: 'bad region' };
       G.startRegion = body.region;
       G.startedAt = Date.now();
-      rstate(body.region).i = 0.03;
+      const sm = rmeta(body.region);
+      rstate(body.region).i = Math.max(0.002, Math.min(sm.pop, sm.pop * CFG.seedIFrac));
       G.phase = 'running';
       log(`Paciente zero em ${rmeta(body.region).name}.`, 'player');
       dev.onSeed(G);
@@ -480,7 +504,9 @@ const SMART_PRIO = ['t_mob1','a_heat','a_cold','t_air1','s_incub','s_asym','a_hu
 
 function simTest(strategy) {
   strategy = strategy || process.argv[3] || 'cheap';
-  G = newGame('standard');
+  const scenIdx = process.argv.indexOf('--scenario');
+  const scen = scenIdx > -1 ? process.argv[scenIdx + 1] : 'standard';
+  G = newGame(SCENARIOS[scen] ? scen : 'standard');
   let region;
   if (strategy === 'smart') {
     const cands = REGIONS.filter(r => (r.climate === 'temperate' || r.climate === 'humid') && r.airport)
@@ -510,6 +536,12 @@ function simTest(strategy) {
     }
     tick();
     days++;
+    if (process.env.SIM_DEBUG && (days % 25 === 0 || G.phase !== 'running')) {
+      const sr = G.regions.find(x=>x.id===G.startRegion);
+      const top = G.regions.slice().sort((a,b)=>b.i-a.i)[0];
+      const topM = top ? rmeta(top.id) : null;
+      console.log('DBG|' + JSON.stringify({ day: G.day, cumPct: +(100*G.cumInf/WORLD_POP).toFixed(1), infPct: +(100*(G.regions.reduce((s,x)=>s+x.i,0))/WORLD_POP).toFixed(1), nId: G.regions.filter(x=>x.identified).length, awareness: +G.awareness.toFixed(0), stage: G.stage, vaccine: +G.vaccine.toFixed(0), dna: +G.dna.toFixed(0), seedDet: sr ? +sr.detection.toFixed(0) : null, seedIFracPct: sr ? +(100*sr.i/(rmeta(sr.id)||{pop:1}).pop).toFixed(2) : null, topI: top ? +top.i.toFixed(3)+'M' : null, topDet: top ? +top.detection.toFixed(0) : null, topName: topM ? topM.name : null }));
+    }
   }
   const r = G.result || { win: null, reason: 'timeout/crash', day: days };
   console.log(JSON.stringify({

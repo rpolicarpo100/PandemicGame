@@ -29,8 +29,9 @@ if (!pw) {
   const playRefs = [...play.matchAll(/(?:src|href)="([^"]+)"/g)].map(m => m[1]).filter(x => x.startsWith('/'));
   check('play: 0 assets internos referenciados', playRefs.length === 0 || playRefs.every(x => true),
     `${playRefs.join(', ') || 'nenhum (SSE + canvas inline?)'}` || 'n/a');
-  const devRefs = [...dev.matchAll(/(?:src|href)="(\/[^"]+)"/g)].map(m => m[1]);
-  check('dev: assets /fonts servidos pelo mesmo host', devRefs.every(x => x.startsWith('/fonts/')));
+  const fontRefs = [...dev.matchAll(/url\((['"]?)(\/[^'")]+)\1\)/g)].map(m => m[2]);
+  check('dev: fontes /fonts servidas pelo mesmo host', fontRefs.length > 0 && fontRefs.every(x => x.startsWith('/fonts/')),
+    `${fontRefs.join(', ') || 'nenhuma @font-face url()'}`);
   check('dev: JS usa fetch relativo (sem localhost)', !/fetch\(['"]https?:\/\/(localhost|127\.0\.0\.1)/.test(dev));
   check('dev: referência ao address da wallet na API (não hardcoded)', !/8biED[0-9A-Za-z]{20,}/.test(dev.replace(/<div class="addr"[^>]*>…<\/div>/, '')) || true, 'endereço vem da API');
   console.log('\n  ⚠ UI browser test requer:  cd qa && npm i -D playwright && npx playwright install chromium');

@@ -347,6 +347,9 @@ function draw(t){
   }
   ctx.setLineDash([]);ctx.lineWidth=1;
 
+  // veículos animados (aviões/barcos/carros) — vermelhos quando a rota está contaminada
+  drawFleet(t);
+
   // crosshair + leitura de coordenadas
   const inBox=mouse.inside&&mouse.x>=MB.x&&mouse.x<=MB.x+MB.w&&mouse.y>=MB.y&&mouse.y<=MB.y+MB.h;
   if(inBox){
@@ -394,17 +397,21 @@ function draw(t){
     }
     ctx.fillStyle=frac>0.15?'#ff9db0':'#93a284';
     ctx.font='7.5px Mono,monospace';ctx.textAlign='center';
-    // posição de etiqueta com anti-colisão (baixo → cima → afastadas)
-    const lbl=r.name.toUpperCase(),hw=lbl.length*2.3;
-    let ly=y+rr+10;
-    outer:for(const c of [y+rr+10,y-rr-5,y-rr-15,y+rr+20]){
-      for(const o of S.regions){if(o.id===r.id)continue;
-        if(Math.abs(px(o)-x)<hw+rad(o)+2&&Math.abs(c-py(o))<rad(o)+5)continue outer;}
-      for(const p of placedLbl){if(Math.abs(p[0]-x)<hw+p[1]+7&&Math.abs(p[2]-c)<8)continue outer;}
-      ly=c;break;
+    // com 95 cidades reais, só rotulamos as principais (top-N por pop) +
+    // a que está em hover/seleção; as restantes aparecem no tooltip.
+    const isMajor = r._maj || hover===r || selected===r.id;
+    if(isMajor){
+      const lbl=r.name.toUpperCase(),hw=lbl.length*2.3;
+      let ly=y+rr+10;
+      outer:for(const c of [y+rr+10,y-rr-5,y-rr-15,y+rr+20]){
+        for(const o of S.regions){if(o.id===r.id)continue;
+          if(Math.abs(px(o)-x)<hw+rad(o)+2&&Math.abs(c-py(o))<rad(o)+5)continue outer;}
+        for(const p of placedLbl){if(Math.abs(p[0]-x)<hw+p[1]+7&&Math.abs(p[2]-c)<8)continue outer;}
+        ly=c;break;
+      }
+      placedLbl.push([x,hw,ly]);
+      ctx.fillText(lbl,x,ly);
     }
-    placedLbl.push([x,hw,ly]);
-    ctx.fillText(lbl,x,ly);
   });
 
   // escala
@@ -447,6 +454,89 @@ function draw(t){
     const lon=(mouse.x-MB.x)/MB.w*360-180, lat=90-(mouse.y-MB.y)/MB.h*180;
     ctx.textAlign='left';ctx.fillStyle='rgba(200,255,63,.65)';
     ctx.fillText(`LAT ${lat>=0?'+':''}${lat.toFixed(1)}° · LON ${lon>=0?'+':''}${lon.toFixed(1)}°`,mouse.x+10,mouse.y-8);
+  }
+}
+function markMajors(){
+  if(!S)return;
+  const arr=S.regions.slice().sort((a,b)=>b.pop-a.pop);
+  const keep=new Set(arr.slice(0,Math.max(30,Math.ceil(arr.length*0.4))).map(r=>r.id));
+  S.regions.forEach(r=>r._maj=keep.has(r.id));
+}
+/* ---------- veículos (camada visual animada, derivada das rotas reais) ---------- */
+let FLEET=[], fleetKey='';
+function buildFleet(){
+  if(!S||!S.meta||!S.meta.edges)return;
+  const key=S.meta.edges.length+':'+S.regions.length+':'+S.scenario;
+  if(key===fleetKey)return;
+  fleetKey=key; FLEET=[];
+  const byId={};S.regions.forEach(r=>byId[r.id]=r);
+  const seen=new Set();
+  const pick=(type,cap,minKm)=>{
+    const cands=S.meta.edges.filter(e=>e.type===type);
+    // ordena por "importância" (soma das populações) e pega nas top cap
+    cands.sort((a,b)=>{const pa=byId[a.a]&&byId[a.b]?(byId[a.a].pop+byId[a.b].pop):0;
+      const pb=byId[b.a]&&byId[b.b]?(byId[b.a].pop+byId[b.b].pop):0;return pb-pa;});
+    let n=0;
+    for(const e of cands){
+      if(n>=cap)break;
+      if(seen.has(e.a+'|'+e.b))continue;
+      seen.add(e.a+'|'+e.b);seen.add(e.b+'|'+e.a);
+      // duração da viagem consoante tipo (px/s aprox.) — pseudo-aleatória mas estável
+      const rnd=((e.a.length*7+e.b.length*13+e.type.length*3)%97)/97;
+      FLEET.push({type,e,off:rnd*2, dur: type==='air'?14+rnd*18 : type==='sea'?38+rnd*50 : 16+rnd*26});
+      n++;
+    }
+  };
+  pick('air', 46, 0); pick('sea', 30, 0); pick('land', 60, 0);
+}
+function qBez(p0,p1,p2,t){const u=1-t;return [u*u*p0[0]+2*u*t*p1[0]+t*t*p2[0], u*u*p0[1]+2*u*t*p1[1]+t*t*p2[1]];}
+function drawVeh(ctx,x,y,ang,type,col){
+  ctx.save();ctx.translate(x,y);ctx.rotate(ang);ctx.fillStyle=col;
+  if(type==='air'){
+    ctx.beginPath();ctx.moveTo(4,0);ctx.lineTo(-3,1.8);ctx.lineTo(-1,0);ctx.lineTo(-3,-1.8);ctx.closePath();ctx.fill();
+  }else if(type==='sea'){
+    ctx.beginPath();ctx.ellipse(0,0,4.2,1.7,0,0,Math.PI*2);ctx.fill();
+    ctx.fillRect(-1.2,-2.6,2.4,1.4);ctx.fillRect(-0.5,-3.6,1,1.2);
+  }else{
+    ctx.fillRect(-2.8,-1.9,5.6,3.8);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(-2.8,-1.9,5.6,1.2);
+  }
+  ctx.restore();
+}
+function drawFleet(t){
+  buildFleet();
+  if(!S||!FLEET.length)return;
+  const byId={};S.regions.forEach(r=>byId[r.id]=r);
+  for(const v of FLEET){
+    const a=byId[v.e.a],b=byId[v.e.b];
+    if(!a||!b)continue;
+    const x1=px(a),y1=py(a),x2=px(b),y2=py(b);
+    // ping-pong: u vai de 0→1→0 (ida e volta)
+    const ph=(v.off+t/v.dur)%2;
+    const u=ph<=1?ph:2-ph;
+    const dir=ph<=1?1:-1;
+    let x,y,ang;
+    if(v.e.type==='air'){
+      const mx=(x1+x2)/2,my=(y1+y2)/2;
+      const dx=x2-x1,dy=y2-y1,dist=Math.hypot(dx,dy)||1;
+      const off=Math.min(44,dist*0.18);
+      const ctl=[mx-dy/dist*off,my+dx/dist*off];
+      const p=qBez([x1,y1],ctl,[x2,y2],u);x=p[0];y=p[1];
+      const p2=qBez([x1,y1],ctl,[x2,y2],Math.min(1,u+0.02*dir));ang=Math.atan2(p2[1]-y,p2[0]-x);
+    }else{
+      x=x1+(x2-x1)*u;y=y1+(y2-y1)*u;
+      ang=Math.atan2((y2-y1)*dir,(x2-x1)*dir);
+    }
+    // contaminação: fica VERMELHO se qualquer ponta da rota estiver infetada
+    // contaminação = qualquer ponta com infeção ativa (coerente com o vermelho dos pontos)
+    const hot=(a.i>0.001)||(b.i>0.001);
+    if(hot){
+      ctx.shadowBlur=6;ctx.shadowColor='#ff2e3f';
+      drawVeh(ctx,x,y,ang,v.e.type,'#ff2e3f');
+      ctx.shadowBlur=0;
+    }else{
+      const col=v.e.type==='air'?'#d8e8ff':v.e.type==='sea'?'#7fd3c0':'#e9efe3';
+      drawVeh(ctx,x,y,ang,v.e.type,col);
+    }
   }
 }
 const t0=performance.now();
@@ -625,7 +715,7 @@ function renderOverlays(){
       <div>Dias<b>${r.day}</b></div>
       <div>Inf. acumulada<b>${(100*r.cumInf/r.worldPop).toFixed(1)}%</b></div>
       <div>Mortos<b>${(100*r.dead/r.worldPop).toFixed(2)}%</b></div>
-      <div>Regiões<b>${r.regions}/36</b></div>
+      <div>Regiões<b>${r.regions}/${S.regions.length}</b></div>
       <div>Evoluções<b>${r.nodes}</b></div>
       <div>Fenótipos<b>${r.builds}</b></div>`;
   }else end.style.display='none';
@@ -661,12 +751,12 @@ window.__qaClickRegion=id=>{
   cv.dispatchEvent(new MouseEvent('click',{clientX:cx,clientY:cy,bubbles:true}));
   return true;
 };
-fetch('/state').then(r=>r.json()).then(s=>{S=s;resize();render();})
+fetch('/state').then(r=>r.json()).then(s=>{S=s;markMajors();resize();render();})
   .catch(()=>{document.getElementById('neterr').style.display='block';});
 const es=new EventSource('/events');
 es.onopen=()=>{document.getElementById('neterr').style.display='none';};
 es.onerror=()=>{document.getElementById('neterr').style.display='block';};
-es.onmessage=e=>{try{S=JSON.parse(e.data);render();}catch(_){}};
+es.onmessage=e=>{try{S=JSON.parse(e.data);markMajors();render();}catch(_){}};
 </script>
 </body>
 </html>

@@ -29,7 +29,7 @@ node server.js --simtest dumb|cheap|smart   # teste de balance headless
 
 | SPEC | Implementação |
 |------|---------------|
-| §12 World simulation | 36 regiões fictícias sobre **mapa-mundo real** (Natural Earth 110m, projeção equiretangular) com população, densidade, clima, healthcare, ciência, mobilidade, aeroportos/portos; grafo de rotas por **distância real (haversine)**: land <1300km, sea <9000km (portos), air <13000km (aeroportos) |
+| §12 World simulation | 95 cidades REAIS (áreas metropolitanas, nomes verdadeiros) sobre **mapa-mundo real** (Natural Earth 110m, projeção equiretangular) com população, densidade, clima, healthcare, ciência, mobilidade, aeroportos/portos; grafo de rotas por **distância real (haversine)**: land <1300km, sea <9000km (portos), air <13000km (aeroportos) |
 | §14 Modelo temporal | Ticks; **1 tick = 2 s = 1 dia de jogo** (parâmetro de calibração — ver desvios); velocidade 1×/2×/4×/pausa; relógio de 400 dias |
 | §15 Condições de vitória | GLOBAL INFECTION (65% acumulado) · COLLAPSE (45% mortos) · ENDEMIC (≥58% no relógio) · ERRADICAÇÃO · EXTINÇÃO · relógio |
 | §6/§7 Evolução | 37 nós em 7 árvores (custo + benefício + downside + tags + pré-requisitos), dados em `data.js` |

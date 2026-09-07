@@ -27,7 +27,7 @@ check('404 em rota inexistente', r.status === 404, `HTTP ${r.status}`);
 // --- estado ---
 r = await jget('/state');
 check('GET /state 200 + json', r.status === 200 && r.json && r.json.phase !== undefined);
-check('state: 36 regiões', r.json && Array.isArray(r.json.regions) && r.json.regions.length === 36, `regions=${r.json && r.json.regions.length}`);
+check('state: ≥90 cidades reais', r.json && Array.isArray(r.json.regions) && r.json.regions.length >= 90, `regions=${r.json && r.json.regions.length}`);
 check('state: 3 cenários PvE', r.json && r.json.scenarios && r.json.scenarios.length === 3, `scenarios=${r.json && r.json.scenarios.length}`);
 
 // --- SSE ---
