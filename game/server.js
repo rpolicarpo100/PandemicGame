@@ -42,7 +42,7 @@ const SCENARIOS = {
     clock: 260, awarenessMul: 1.20, detectMul: 1.00, startDna: 90, treatMul: 1.0,
     desc: 'Relógio curto e humanidade alerta. Expansão agressiva obrigatória.' },
   iron: { id: 'iron', name: 'IRON WORLD', tag: 'A humanidade está preparada', diff: 3,
-    clock: 400, awarenessMul: 1.85, detectMul: 1.90, startDna: 35, treatMul: 1.6,
+    clock: 400, awarenessMul: 1.60, detectMul: 1.60, startDna: 50, treatMul: 1.25,
     desc: 'Deteção rápida, tratamentos fortes, consciência acelerada. Só para especialistas.' },
   standard: { id: 'standard', name: 'STANDARD', tag: 'Calibração', diff: 2,
     clock: 400, awarenessMul: 1.00, detectMul: 1.00, startDna: 60, treatMul: 1.0,
@@ -232,7 +232,7 @@ function tick() {
     const deaths = Math.min(r.i * effLeth, r.i);
     // colapso dos cuidados: com a humanidade em agonia (muitos mortos), a cura
     // deixa de acompanhar — a morte torna-se irreversível nos estádios finais.
-    const careCollapse = Math.max(0.05, 1 - 0.97 * (G.regions.reduce((z, x) => z + x.dead, 0) / WORLD_POP));
+    const careCollapse = Math.max(0.02, 1 - 1.04 * (G.regions.reduce((z, x) => z + x.dead, 0) / WORLD_POP));
     const cureRate = (0.004 + 0.060 * r.treatment * scMul('treatMul', 1)) * (1 - stats.cureResist) * careCollapse;
     const cured = Math.min(Math.max(r.i - deaths, 0) * cureRate, r.i - deaths);
     r.i = Math.max(0, r.i + newI - deaths - cured);
@@ -400,18 +400,18 @@ function scoreGame(win) {
     destruicao: Math.round(350 * deadFrac),
     contagio: Math.round(100 * cumFrac),
     rapidez: win ? Math.round(100 * Math.max(0, 1 - G.day / clock)) : 0,
-    eficiencia: Math.round(100 * (1 - eff)),
+    eficiencia: Math.round(100 * deadFrac * (1 - eff)),
   };
   const diff = (G.scenario && SCENARIOS[G.scenario]) ? SCENARIOS[G.scenario].diff : 1;
   const mult = 1 + (diff - 1) * 0.15;
   const base = parts.extincao + parts.destruicao + parts.contagio + parts.rapidez + parts.eficiencia;
   const value = Math.round(Math.min(1000, base * mult));
   let label = 'SURTO CONTIDO';
-  if (value >= 950) label = 'EXTINÇÃO TOTAL';
-  else if (value >= 800) label = 'HOLOCAUSTO GLOBAL';
-  else if (value >= 650) label = 'APOCALIPSE';
-  else if (value >= 450) label = 'PANDEMIA GRAVE';
-  else if (value >= 250) label = 'SURTO MUNDIAL';
+  if (value >= 900) label = 'EXTINÇÃO TOTAL';
+  else if (value >= 750) label = 'HOLOCAUSTO GLOBAL';
+  else if (value >= 600) label = 'APOCALIPSE';
+  else if (value >= 400) label = 'PANDEMIA GRAVE';
+  else if (value >= 200) label = 'SURTO MUNDIAL';
   return { value, max: 1000, label, mult: Math.round(mult * 100) / 100, parts };
 }
 
@@ -572,7 +572,8 @@ function simTest(strategy) {
       // fase 1: expansão barata; fase 2 (>=45% da humanidade infetada): cadeia letal
       const cumF = G.cumInf / WORLD_POP;
       let next = null;
-      if (cumF >= 0.45) {
+      const lethAt = G.scenario === 'iron' ? 0.50 : 0.45;
+      if (cumF >= lethAt) {
         const LETH = ['l_resp', 'l_organ', 'l_systemic', 'u_collapse', 'sp_load', 'l_collapse', 'l_neuro'];
         next = LETH.find(id => {
           const n = NODES.find(x => x.id === id);
