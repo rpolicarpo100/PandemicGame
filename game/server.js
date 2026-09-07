@@ -466,6 +466,7 @@ function doAction(body) {
   if (!body || !body.type) return { error: 'bad action' };
   switch (body.type) {
     case 'agent': {
+      if (G.phase !== 'setup') return { error: 'not in setup' };   // sem trocas a meio da partida
       const a = AGENTS.find(x => x.id === body.agent);
       if (!a) return { error: 'bad agent' };
       AGENT_ID = a.id;

@@ -245,17 +245,17 @@ const NODES = [
   N('u_collapse','GLOBAL COLLAPSE',  'ultimate', 300, ['l_systemic'], [{k:'leth',mul:2.50},{k:'trans',mul:1.15},{k:'detectMod',mul:1.30}], ['ultimate','lethal','collapse'], 'Letalidade extrema à escala global.'),
   N('u_immortal','IMMORTAL STRAIN',  'ultimate', 280, ['a_res2'], [{k:'cureResist',add:0.30},{k:'detectMod',mul:0.85}], ['ultimate','resistance'], 'Praticamente impossível de tratar.'),
   // VETORES (zoonose) — novo stat 'zoon': saltos zoonóticos que contornam fechos de rotas
-  N('v_praga',   'Reservatórios Urbanos','vetor', 95,  [],            [{k:'zoon',add:0.15}], ['animal','urban'], 'Ratos e esgotos perpetuam o ciclo urbano.'),
-  N('v_aves',    'Rotas Aviárias',      'vetor', 100, [],            [{k:'zoon',add:0.18},{k:'detectMod',mul:1.05}], ['animal','airborne'], 'Aves migratórias transportam o agente entre continentes.'),
-  N('v_livestock','Pecuária Industrial', 'vetor', 105, [],           [{k:'zoon',add:0.18},{k:'climate.humid',mul:1.10}], ['animal','water'], 'Gado amplifica o agente em climas húmidos.'),
-  N('v_insetos', 'Super-Vetores',       'vetor', 120, ['v_praga'],   [{k:'zoon',add:0.20},{k:'climate.hot',mul:1.10}], ['vector','insect'], 'Artropodes resistentes alargam o alcance.'),
-  N('v_master',  'MESTRES ZOONÓTICOS',  'vetor', 190, ['v_insetos','v_aves'], [{k:'zoon',add:0.35},{k:'stealth',add:0.10}], ['ultimate','animal','vector'], 'O agente vive no mundo natural: saltos constantes.'),
+  N('v_praga',   'Reservatórios Urbanos','vetor', 75,  [],            [{k:'zoon',add:0.15}], ['animal','urban'], 'Ratos e esgotos perpetuam o ciclo urbano.'),
+  N('v_aves',    'Rotas Aviárias',      'vetor', 85, [],            [{k:'zoon',add:0.18},{k:'detectMod',mul:1.05}], ['animal','airborne'], 'Aves migratórias transportam o agente entre continentes.'),
+  N('v_livestock','Pecuária Industrial', 'vetor', 85, [],           [{k:'zoon',add:0.18},{k:'climate.humid',mul:1.10}], ['animal','water'], 'Gado amplifica o agente em climas húmidos.'),
+  N('v_insetos', 'Super-Vetores',       'vetor', 105, ['v_praga'],   [{k:'zoon',add:0.20},{k:'climate.hot',mul:1.10}], ['vector','insect'], 'Artropodes resistentes alargam o alcance.'),
+  N('v_master',  'MESTRES ZOONÓTICOS',  'vetor', 170, ['v_insetos','v_aves'], [{k:'zoon',add:0.35},{k:'stealth',add:0.10}], ['ultimate','animal','vector'], 'O agente vive no mundo natural: saltos constantes.'),
   // CAOS SOCIAL — novo stat 'refuse': a população recusa vacinas/tratamentos
-  N('c_buzz',    'Ruído Mediático',     'caos', 95,  [],             [{k:'refuse',add:0.12},{k:'detectMod',mul:0.96}], ['social','media'], 'Desinformação confunde a vigilância.'),
-  N('c_neg',     'Negacionismo',        'caos', 115, ['c_buzz'],     [{k:'refuse',add:0.18}], ['social'], 'Parte da população nega a ameaça.'),
-  N('c_dist',    'Distúrbios Civis',    'caos', 105, [],             [{k:'refuse',add:0.15},{k:'trans',mul:1.05}], ['social'], 'Protestos e aglomerações espalham o agente.'),
-  N('c_desconf', 'Desconfiança Sanitária','caos', 120, ['c_dist'],   [{k:'refuse',add:0.18},{k:'detectMod',mul:0.97}], ['social','resistance'], 'Vacinas e hospitais são evitados.'),
-  N('c_anarchy', 'ANARQUIA GLOBAL',     'caos', 220, ['c_neg','c_desconf'], [{k:'refuse',add:0.30},{k:'leth',mul:1.15},{k:'detectMod',mul:1.10}], ['ultimate','social'], 'Contra-medidas colapsam; a morte acelera.'),
+  N('c_buzz',    'Ruído Mediático',     'caos', 80,  [],             [{k:'refuse',add:0.12},{k:'detectMod',mul:0.96}], ['social','media'], 'Desinformação confunde a vigilância.'),
+  N('c_neg',     'Negacionismo',        'caos', 95, ['c_buzz'],     [{k:'refuse',add:0.18}], ['social'], 'Parte da população nega a ameaça.'),
+  N('c_dist',    'Distúrbios Civis',    'caos', 85, [],             [{k:'refuse',add:0.15},{k:'trans',mul:1.05}], ['social'], 'Protestos e aglomerações espalham o agente.'),
+  N('c_desconf', 'Desconfiança Sanitária','caos', 105, ['c_dist'],   [{k:'refuse',add:0.18},{k:'detectMod',mul:0.97}], ['social','resistance'], 'Vacinas e hospitais são evitados.'),
+  N('c_anarchy', 'ANARQUIA GLOBAL',     'caos', 200, ['c_neg','c_desconf'], [{k:'refuse',add:0.30},{k:'leth',mul:1.15},{k:'detectMod',mul:1.10}], ['ultimate','social'], 'Contra-medidas colapsam; a morte acelera.'),
 ];
 
 // ---------- EMERGENT BUILDS (tag rule engine, SPEC §8.1) ----------
@@ -278,6 +278,12 @@ const BUILDS = [
   { id:'urban_plague', name:'URBAN PLAGUE', all:['contact','urban'],
     effects:[{k:'dense',mul:1.30}],
     desc:'Contacto + adaptação urbana. As megacidades são o teu terreno.' },
+  { id:'zoonotic_storm', name:'ZOONOTIC STORM', all:['animal','vector'],
+    effects:[{k:'zoon',add:0.10},{k:'trans',mul:1.06}],
+    desc:'Reservatórios + vetores em sinergia. Saltos zoonóticos reforçados.' },
+  { id:'civil_unrest', name:'CIVIL UNREST', all:['social','resistance'],
+    effects:[{k:'refuse',add:0.10},{k:'detectMod',mul:0.98}],
+    desc:'Negação + desconfiança sanitária. As contra-medidas perdem tração.' },
 ];
 
 // ---------- EVOLUTION EVENTS (SPEC §9) ----------
