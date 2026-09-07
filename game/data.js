@@ -19,7 +19,6 @@ const REGIONS = [
   R('munique','Munique',   11.58, 48.14,  2.9,0.58,'temperate',0.95,0.93,0.90,0.82,true,false),
   R('berlim','Berlim',   13.40, 52.52,  3.6,0.52,'temperate',0.93,0.92,0.88,0.82,true,false),
   R('viena','Viena',   16.37, 48.21,  2.9,0.55,'temperate',0.95,0.90,0.90,0.84,true,false),
-  R('zurique','Zurique',    8.54, 47.37,  1.4,0.50,'temperate',0.98,0.96,0.95,0.88,true,false),
   R('praga','Praga',   14.44, 50.08,  2.7,0.55,'temperate',0.90,0.85,0.82,0.76,true,false),
   R('varsovia','Varsóvia',   21.01, 52.23,  3.1,0.58,'temperate',0.85,0.84,0.80,0.72,true,false),
   R('budapeste','Budapeste',   19.04, 47.50,  3.0,0.55,'temperate',0.85,0.82,0.80,0.74,true,false),
@@ -106,18 +105,10 @@ const REGIONS = [
 // Expansão 2026: metrópoles reais de 2.º escalão (95 -> 175 cidades).
   R('dublin','Dublin',   -6.26, 53.35,  2.1,0.55,'temperate',0.95,0.95,0.92,0.85,true,true),
   R('manchester','Manchester',   -2.24, 53.48,  2.9,0.55,'temperate',0.90,0.92,0.90,0.80,true,false),
-  R('birmingham','Birmingham',   -1.90, 52.48,  2.9,0.52,'temperate',0.90,0.88,0.88,0.78,true,false),
-  R('glasgow','Glasgow',   -4.25, 55.86,  1.8,0.45,'temperate',0.93,0.92,0.90,0.80,true,true),
-  R('hamburgo','Hamburgo',    9.99, 53.55,  1.9,0.50,'temperate',0.95,0.93,0.92,0.84,true,true),
-  R('lyon','Lyon',    4.84, 45.76,  2.3,0.55,'temperate',0.93,0.94,0.90,0.82,true,false),
   R('marselha','Marselha',    5.37, 43.30,  1.9,0.55,'temperate',0.90,0.90,0.88,0.80,true,true),
-  R('napoles','Nápoles',   14.27, 40.85,  3.1,0.62,'hot',0.82,0.80,0.80,0.72,true,true),
   R('oslo','Oslo',   10.75, 59.91,  1.6,0.42,'cold',0.97,0.95,0.94,0.88,true,true),
   R('helsinquia','Helsínquia',   24.94, 60.17,  1.6,0.42,'cold',0.96,0.95,0.93,0.86,true,true),
   R('bucareste','Bucareste',   26.10, 44.43,  2.3,0.55,'temperate',0.80,0.80,0.78,0.66,true,false),
-  R('minsk','Minsk',   27.57, 53.90,  2.0,0.50,'cold',0.78,0.80,0.76,0.62,true,false),
-  R('sofia','Sófia',   23.32, 42.70,  1.5,0.52,'temperate',0.78,0.76,0.74,0.64,true,false),
-  R('belgrado','Belgrado',   20.45, 44.79,  1.7,0.52,'temperate',0.80,0.78,0.76,0.66,true,false),
   R('boston','Boston',  -71.06, 42.36,  4.9,0.50,'cold',0.93,0.97,0.93,0.82,true,true),
   R('filadelfia','Filadélfia',  -75.17, 39.95,  6.2,0.52,'temperate',0.90,0.93,0.90,0.78,true,true),
   R('washington','Washington',  -77.04, 38.91,  6.3,0.50,'temperate',0.90,0.96,0.94,0.86,true,false),
@@ -184,6 +175,21 @@ const REGIONS = [
   R('phnom-penh','Phnom Penh', 104.92, 11.56,  2.3,0.62,'humid',0.52,0.54,0.56,0.46,true,false),
   R('adelaide','Adelaide', 138.60,-34.93,  1.4,0.42,'temperate',0.93,0.92,0.90,0.78,true,true),
   R('perth','Perth',   115.86,-31.95,  2.1,0.42,'temperate',0.92,0.90,0.90,0.76,true,true),
+
+// Expansão setentrional: Gronelândia/Islândia/Alasca/Canadá + lacunas globais (Madagáscar/Havai/Sibéria).
+  R('calgary','Calgary', -114.07, 51.05,  1.5,0.30,'cold',0.94,0.92,0.91,0.84,true,false),
+  R('edmonton','Edmonton', -113.49, 53.55,  1.4,0.28,'cold',0.93,0.90,0.90,0.82,true,false),
+  R('ottawa','Ottawa',  -75.70, 45.42,  1.4,0.30,'cold',0.95,0.94,0.92,0.86,true,false),
+  R('winnipeg','Winnipeg',  -97.14, 49.90,  0.85,0.26,'cold',0.92,0.88,0.88,0.78,true,false),
+  R('quebec','Quebec',  -71.21, 46.81,  0.84,0.28,'cold',0.93,0.90,0.88,0.78,true,true),
+  R('halifax','Halifax',  -63.57, 44.65,  0.47,0.25,'cold',0.92,0.90,0.88,0.80,true,true),
+  R('anchorage','Anchorage', -149.90, 61.22,  0.40,0.15,'cold',0.88,0.87,0.85,0.68,true,true),
+  R('reiquiavique','Reiquiavique',  -21.94, 64.15,  0.24,0.35,'cold',0.97,0.95,0.94,0.86,true,true),
+  R('nuuk','Nuuk',  -51.72, 64.18,  0.02,0.15,'cold',0.84,0.80,0.82,0.58,true,true),
+  R('antananarivo','Antananarivo',   47.51,-18.88,  3.6,0.60,'temperate',0.48,0.50,0.44,0.38,true,false),
+  R('honolulu','Honolulu', -157.86, 21.31,  1.0,0.55,'hot',0.92,0.94,0.93,0.80,true,true),
+  R('novosibirsk','Novosibirsk',   82.93, 55.03,  1.6,0.30,'cold',0.78,0.82,0.80,0.60,true,false),
+  R('vladivostok','Vladivostok',  131.89, 43.12,  0.63,0.22,'cold',0.80,0.80,0.80,0.58,true,true),
 ];
 
 // ---------- EVOLUTION NODES ----------

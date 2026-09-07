@@ -398,7 +398,7 @@ function doAction(body) {
       G.startRegion = body.region;
       G.startedAt = Date.now();
       const sm = rmeta(body.region);
-      rstate(body.region).i = Math.max(0.002, Math.min(sm.pop, sm.pop * CFG.seedIFrac));
+      rstate(body.region).i = Math.min(sm.pop, Math.max(sm.pop * 0.0002, sm.pop * CFG.seedIFrac));
       G.phase = 'running';
       log(`Paciente zero em ${rmeta(body.region).name}.`, 'player');
       dev.onSeed(G);
