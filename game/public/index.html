@@ -505,7 +505,8 @@ function buildFleet(){
       n++;
     }
   };
-  pick('air', 46, 0); pick('sea', 30, 0); pick('land', 60, 0);
+  // frota densa: prioriza as rotas de maior tráfego (soma das populações)
+  pick('air', 105, 0); pick('sea', 75, 0); pick('land', 140, 0);
 }
 function qBez(p0,p1,p2,t){const u=1-t;return [u*u*p0[0]+2*u*t*p1[0]+t*t*p2[0], u*u*p0[1]+2*u*t*p1[1]+t*t*p2[1]];}
 function drawVeh(ctx,x,y,ang,type,col){
@@ -544,17 +545,17 @@ function drawFleet(t){
       x=x1+(x2-x1)*u;y=y1+(y2-y1)*u;
       ang=Math.atan2((y2-y1)*dir,(x2-x1)*dir);
     }
-    // contaminação: fica VERMELHO se qualquer ponta da rota estiver infetada
     // contaminação = qualquer ponta com infeção ativa (coerente com o vermelho dos pontos)
     const hot=(a.i>0.001)||(b.i>0.001);
-    if(hot){
-      ctx.shadowBlur=6;ctx.shadowColor='#ff2e3f';
-      drawVeh(ctx,x,y,ang,v.e.type,'#ff2e3f');
-      ctx.shadowBlur=0;
-    }else{
-      const col=v.e.type==='air'?'#d8e8ff':v.e.type==='sea'?'#7fd3c0':'#e9efe3';
-      drawVeh(ctx,x,y,ang,v.e.type,col);
-    }
+    const col=hot?'#ff2e3f':(v.e.type==='air'?'#d8e8ff':v.e.type==='sea'?'#7fd3c0':'#e9efe3');
+    // rasto curto: dá leitura do sentido e densifica visualmente o tráfego
+    ctx.strokeStyle=col;ctx.globalAlpha=0.28;ctx.lineWidth=1;
+    const tl=v.e.type==='air'?12:7;
+    ctx.beginPath();ctx.moveTo(x-Math.cos(ang)*tl,y-Math.sin(ang)*tl);ctx.lineTo(x,y);ctx.stroke();
+    ctx.globalAlpha=1;
+    if(hot){ctx.shadowBlur=6;ctx.shadowColor='#ff2e3f';}
+    drawVeh(ctx,x,y,ang,v.e.type,col);
+    ctx.shadowBlur=0;
   }
 }
 const t0=performance.now();
