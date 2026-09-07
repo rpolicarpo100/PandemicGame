@@ -21,6 +21,24 @@ const ADMIN_KEY = process.env.DEV_ADMIN_KEY || '';        // if set, POST /api/d
 const FILE = process.env.DEV_DATA_FILE || path.join(os.tmpdir(), 'pevo-dev-telemetry.json');
 
 const MINUTE_BINS = 60;                                   // 60 x 1min = last hour ring
+const WEBHOOK = process.env.DEV_WEBHOOK_URL || '';         // alertas ops (Slack-compat: {"text":…})
+const _alerts = {};
+
+// Alertas operacionais (5xx, crash, boot). Sem DEV_WEBHOOK_URL: só log.
+// Throttle por tipo (10 min) — evita spam em cascata.
+function notify(msg, key) {
+  const line = '[dev][alert] ' + msg;
+  if (!WEBHOOK) { console.log(line); return; }
+  if (key) {
+    const now = Date.now();
+    if (_alerts[key] && now - _alerts[key] < 600000) return;
+    _alerts[key] = now;
+  }
+  const who = process.env.RENDER_SERVICE_ID ? 'RENDER' : 'LOCAL';
+  fetch(WEBHOOK, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text: '🦠 PEVO[' + who + '] ' + msg }) })
+    .then(() => {}, () => console.log(line));
+}
 
 const S = {
   enabled: false,
@@ -381,6 +399,7 @@ async function apiRoute(req, res, url) {
     S.sse = { ...S.sse, connects: 0, disconnects: 0, sessionsTotal: 0, sessionsToday: 0, sumSec: 0, todaySumSec: 0, ipCount: {}, todayIp: {} };
     S.ledger = [];
     S.rings.http.fill(0); S.rings.sse.fill(0);
+    S._lastErr = 0;
     save();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true }));
@@ -403,6 +422,10 @@ function minuteTick() {
   while (S.rings.http.length > MINUTE_BINS) S.rings.http.shift(), S.rings.sse.shift();
   S.rings.lastHttp = S.http.total; S.rings.lastSse = S.sse.active;
   S.rings.mark = now;
+  // alerta de 5xx (throttled)
+  const e5 = S.http.serverErr - (S._lastErr || 0);
+  S._lastErr = S.http.serverErr;
+  if (e5 > 0) notify('5xx no último minuto (+' + e5 + ', total ' + S.http.serverErr + ')', '5xx');
 }
 
 function loopMs(ms) { if (!S.enabled) return; S.ops.loopMsSum += ms; S.ops.ticks++; if (ms > S.ops.loopMsMax) S.ops.loopMsMax = ms; }
@@ -424,6 +447,7 @@ function start() {
   getRepo().catch(() => {});
   const booted = new Date();
   console.log(`[dev] console on /dev · wallet ${DEV_WALLET.slice(0, 4)}…${DEV_WALLET.slice(-4)} · accessKey=${ACCESS_KEY ? 'set' : 'OFF (público)'} · data=${FILE}`);
+  notify('servidor arrancou (' + booted.toISOString() + ') · ' + (process.env.RENDER_INSTANCE_ID ? 'render' : 'local') + (WEBHOOK ? ' · webhook ativo' : ''));
 }
 
 function stop() { S.enabled = false; if (_minTimer) clearInterval(_minTimer); if (_saveTimer) clearInterval(_saveTimer); save(); }
@@ -433,5 +457,6 @@ module.exports = {
   start, stop, save,
   countReq, sseOpen, apiRoute, loopMs, tickMark, authOk,
   onSeed, onEvolve, onEventChoice, onNewGame, onEndGame, onSeedScenario,
+  notify,
   _state: () => S,
 };

@@ -1,0 +1,44 @@
+# PANDEMIC EVOLUTION — QA automático a cada push (CI)
+# Corre smoke + concurrency + balance + agents + e2e contra um servidor local.
+# Zero dependências (o servidor e os QA são node puro; ui.mjs degrada para wiring
+# estático sem playwright — o fluxo de browser roda localmente com --ui).
+name: QA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Suite QA (servidor local + smoke/concurrency/balance/agents/e2e)
+        run: |
+          PORT=4000 node game/server.js > /tmp/pevo-srv.log 2>&1 &
+          SRV=$!
+          for i in $(seq 1 40); do
+            curl -sf http://127.0.0.1:4000/state > /dev/null 2>&1 && break
+            sleep 1
+          done
+          node qa/run-all.mjs --full
+          RC=$?
+          kill $SRV 2>/dev/null || true
+          exit $RC
+
+      - name: Upload relatório QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa/out/QA-REPORT.md
+          if-no-files-found: ignore

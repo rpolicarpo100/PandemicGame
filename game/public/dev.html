@@ -217,7 +217,10 @@ canvas.spark{width:100%;height:52px;display:block;background:var(--panel2)}
     <div class="section"><span class="no">KPI-05</span><h2>REGISTO DE PARTIDAS</h2><span class="hint">últimos 15</span></div>
     <div class="card"><div style="overflow-x:auto"><table id="ledTable"><thead><tr><th>hora</th><th>cenário</th><th>resultado</th><th class="num">dia</th><th class="num">inf %</th><th class="num">mortos %</th><th class="num">nós</th><th class="num">DNA fim</th><th class="num">duração</th></tr></thead><tbody></tbody></table></div></div>
 
-    <div class="section"><span class="no">KPI-06</span><h2>AUTO-CRÍTICA & LIMITES CONHECIDOS</h2><span class="hint">gerado pelo servidor em runtime</span></div>
+    <div class="section"><span class="no">KPI-06</span><h2>WIN RATE POR CENÁRIO</h2><span class="hint">R9 · partidas com fim (humano + bots)</span></div>
+    <div class="card"><div style="overflow-x:auto"><table id="wrTable"><thead><tr><th>cenário</th><th class="num">partidas</th><th class="num">vitórias</th><th class="num">win rate</th><th class="num">dia mediano</th><th class="num">mortos % médio</th><th>tendência</th></tr></thead><tbody></tbody></table></div></div>
+
+    <div class="section"><span class="no">KPI-07</span><h2>AUTO-CRÍTICA & LIMITES CONHECIDOS</h2><span class="hint">gerado pelo servidor em runtime</span></div>
     <div id="flags" style="margin-top:10px"></div>
 
     <div class="section"><span class="no">TOOLS</span><h2>QA / AUTO-TESTE</h2><span class="hint">qa/ no repositório</span></div>
@@ -318,6 +321,37 @@ function ledRows(){
     tb.appendChild(tr);
   }
 }
+function wrRows(){
+  const tb = $('wrTable').querySelector('tbody'); tb.innerHTML='';
+  const by = {};
+  for (const g of D.ledger) {
+    if (g.kind !== 'win' && g.kind !== 'lose') continue;
+    const sc = String(g.scenario || '—').toUpperCase();
+    (by[sc] = by[sc] || { n: 0, w: 0, days: [], dead: 0 }).n++;
+    if (g.kind === 'win') by[sc].w++;
+    by[sc].days.push(g.day); by[sc].dead += g.deadPct || 0;
+  }
+  const keys = Object.keys(by);
+  if (!keys.length) { tb.innerHTML = '<tr><td colspan="7" style="color:var(--dim)">sem partidas terminadas no registo.</td></tr>'; return; }
+  for (const sc of keys.sort()) {
+    const e = by[sc];
+    const rate = e.w / e.n;
+    const med = e.days.slice().sort((a, b) => a - b)[Math.floor(e.days.length / 2)];
+    const band = rate >= 0.6 ? 'bio' : rate >= 0.3 ? 'amber' : 'blood';
+    const bar = '<div style="display:flex;gap:2px;align-items:center">' +
+      [1, 2, 3, 4, 5].map(i => '<i style="width:8px;height:' + (4 + i * 3) + 'px;background:' + (i / 5 <= rate ? '#c8ff3f' : '#222c1c') + ';display:inline-block"></i>').join('') +
+      '</div>';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td style="font-weight:700">' + sc + '</td>' +
+      '<td class="num">' + e.n + '</td>' +
+      '<td class="num">' + e.w + '</td>' +
+      '<td class="num" style="color:var(--' + band + ')">' + Math.round(100 * rate) + '%</td>' +
+      '<td class="num">' + med + '</td>' +
+      '<td class="num">' + fmtVal(e.dead / e.n) + '%</td>' +
+      '<td>' + bar + '</td>';
+    tb.appendChild(tr);
+  }
+}
 function sessRows(){
   const tb = $('sessTable').querySelector('tbody'); tb.innerHTML='';
   if (!D.sessions.length){ tb.innerHTML='<tr><td colspan="4" style="color:var(--dim)">sem sessões registadas (abre /play numa janela).</td></tr>'; return; }
@@ -389,7 +423,7 @@ function render(){
   $('envBadge').textContent = D.env.rv ? 'render' : 'local';
   $('envBadge').className = 'badge ' + (D.env.rv ? 'on' : 'off');
   $('liveDot').style.background = '#c8ff3f'; $('liveState').textContent = 'LIVE · refresh 4s'; $('liveState').classList.add('live-in');
-  kpis(); scenBars(); nodeBars(); locBars(); ledRows(); sessRows(); flags(); scoreParts(); wallet();
+  kpis(); scenBars(); nodeBars(); locBars(); ledRows(); wrRows(); sessRows(); flags(); scoreParts(); wallet();
   spark('sparkHttp', D.rings.http); spark('sparkSse', D.rings.sse);
   $('foot').textContent = 'última leitura ' + fmtClock(D.t) + ' · boot ' + fmtClock(D.boot) + ' · telemetria volátil (memória+tmp)';
 }

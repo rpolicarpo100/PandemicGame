@@ -854,8 +854,9 @@ if (require.main === module) {
   // A1 — crash: snapshot imediato antes de morrer (Render reinicia e restaura)
   process.on('uncaughtException', err => {
     console.error('[fatal]', err && err.stack || err);
+    dev.notify('🟥 CRASH: ' + String((err && (err.message || err)) || err).slice(0, 200), 'crash');
     try { snapshotWorld(); } catch (_) {}
-    process.exit(1);
+    setTimeout(() => process.exit(1), 600).unref();   // dá tempo ao alerta webhook
   });
   process.on('unhandledRejection', err => { console.error('[unhandledRejection]', err && (err.stack || err.message || err)); });
   process.once('SIGTERM', () => { maybeSave(true); dev.save(); process.exit(0); });

@@ -156,3 +156,23 @@ Todas as recomendações C1–C4 / A1–A4 / M1–M3 implementadas, com QA verde
    (ex.: `/var/data/…`) — sem isso a telemetria/mundos resetam no redeploy.
 3. (Opcional) Substituir a chave SSH por Deploy Hook da Render + segredo GitHub,
    e remover `~/.ssh/pandemicgame_deploy_key` do ambiente.
+
+---
+
+## ESTADO — ronda "implementa" (itens em aberto, 2026-09-07)
+
+Itens que estavam em aberto nas rondas anteriores, agora implementados (commit
+da ronda, QA 101/101: suíte 75 + R7 extra 12 + ui-features 14):
+
+| Item | Origem | Implementação |
+|------|--------|---------------|
+| R6 — rótulo "hub global" | `TESTES-E-RECOMENDACOES.md` | tooltip na fase de seed: `⬢ HUB GLOBAL — +propagação` quando a região tem aeroporto, ≥15M e clima temperado/húmido |
+| R3 — medalhas | `TESTES-E-RECOMENDACOES.md` | ecrã final: linha MEDALHA por desempenho — EXTINÇÃO ABSOLUTA / EXTINÇÃO TOTAL / EXTINÇÃO (vitória), HOLOCAUSTO GLOBAL (≥90%), COLAPSO DA HUMANIDADE (≥75%), PANDEMIA MUNDIAL (≥50%), SURTO GLOBAL (≥25%), SURTO CONTIDO |
+| `package.json` em `game/` | `RECOMENDACOES.md` §3 | engines node ≥20 + scripts start/simtest — destrava build limpo na Render sem workaround |
+| CI GitHub Actions | `RECOMENDACOES.md` §3 | `.github/workflows/qa.yml`: smoke+concurrency+balance+agents+e2e a cada push/PR (zero deps), artefacto QA-REPORT.md |
+| Alertas webhook | `RECOMENDACOES.md` §2 | `DEV_WEBHOOK_URL` (Slack-compat) + `dev.notify()`: boot, 5xx no último minuto (throttle 10 min), crash antes de exit |
+| R9 — win-rate humano por cenário | `TESTES-E-RECOMENDACOES.md` | painel KPI-06 no `/dev`: partidas/vitórias/win rate/dia mediano/mortos% + mini-spark por cenário, calculado do ledger |
+
+**Notas de operação novas**: `DEV_WEBHOOK_URL` (opcional) no painel da Render
+para receber alertas; o CI corre no GitHub Actions sem custo e sem playwright
+(ui.mjs degrada para wiring estático; o browser roda com `--ui` local).

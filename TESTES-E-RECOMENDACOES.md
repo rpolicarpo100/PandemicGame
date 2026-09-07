@@ -123,3 +123,23 @@ o limiar dos 95%.
 - **Iron precisa de uma decisão de produto** (R1) — é o único ponto em aberto
   real; tudo o resto são melhorias de polimento (R3, R6, R7) e de processo
   (R4, R5, R9).
+
+---
+
+## Estado das recomendações (fecho da ronda "implementa", 2026-09-07)
+
+| # | Recomendação | Estado |
+|---|--------------|--------|
+| R1 | Iron: decisão | ✅ fechada (barra 90% + colapso aos 65%; commit `f04a587`) |
+| R2 | Derrotas 90–94% | ✅ monitorizar apenas (desenhado: tensão intencional) |
+| R3 | Recordes + medalhas | ✅ top-10 local (M1) + **medalhas por rótulo** no ecrã final |
+| R4 | Bot único | ✅ `lib/bot.cjs` partilhado (A4) |
+| R5 | Reps de balance | ✅ 4× por estratégia + 3 iron (A3) |
+| R6 | Rótulo "hub global" | ✅ tooltip de seed com `⬢ HUB GLOBAL — +propagação` |
+| R7 | Objetivo progressivo | ✅ banner FASE 2 aos 65% (M2) |
+| R8 | Desempenho | ✅ sem ação (60,9 fps medido) |
+| R9 | Telemetria humana | ✅ ledger + export CSV + **painel win-rate por cenário no /dev** |
+
+Pendentes (manuais, painel Render — não alteráveis por código): `DEV_ACCESS_KEY`
+fixa, `DEV_DATA_FILE`/`SAVE_FILE` persistentes, `DEV_WEBHOOK_URL`, e troca da
+deploy key por Deploy Hook.

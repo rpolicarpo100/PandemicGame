@@ -214,6 +214,7 @@ aside{width:400px;min-width:330px;background:var(--panel);border-left:1px solid 
       <div class="card">
         <div class="verdict-stamp" id="endTitle"></div>
         <p id="endReason"></p>
+        <div id="endMedal" style="display:none;margin:-2px 0 6px;font-size:9.5px;letter-spacing:.34em"></div>
         <div id="endScore" style="margin:10px 0 4px;padding:10px;border:1px dashed #3a4a33;text-align:center"></div>
         <div class="stats-grid" id="endStats"></div>
         <div id="endTop" style="margin:12px auto 0;max-width:560px;text-align:left"></div>
@@ -273,6 +274,16 @@ function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;t.style.display='block';
   clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2300);
+}
+/* R3 — medalha por desempenho (rótulo de feito no ecrã final) */
+function medalOf(r){
+  const dp=r.worldPop>0?(r.dead||0)/r.worldPop:0;
+  if(r.win){ if(dp>=0.99)return {m:'EXTINÇÃO ABSOLUTA',c:'#ffd24d'}; if(dp>=0.97)return {m:'EXTINÇÃO TOTAL',c:'#ffd24d'}; return {m:'EXTINÇÃO',c:'#ffd24d'}; }
+  if(dp>=0.90)return {m:'HOLOCAUSTO GLOBAL',c:'#ff5a63'};
+  if(dp>=0.75)return {m:'COLAPSO DA HUMANIDADE',c:'#ff9a63'};
+  if(dp>=0.50)return {m:'PANDEMIA MUNDIAL',c:'#d8e8ff'};
+  if(dp>=0.25)return {m:'SURTO GLOBAL',c:'#7fd3c0'};
+  return {m:'SURTO CONTIDO',c:'#7fd3c0'};
 }
 
 /* ================= CANVAS ================= */
@@ -587,10 +598,13 @@ cv.addEventListener('mousemove',e=>{
     const wr=cv.parentElement.getBoundingClientRect();
     tt.style.left=Math.min(e.clientX-wr.left+16,cv.clientWidth-270)+'px';
     tt.style.top=(e.clientY-wr.top+12)+'px';
+    let hub='';
+    if(S.phase==='setup'&&S.scenario&&hover.airport&&hover.pop>=15&&(hover.climate==='temperate'||hover.climate==='humid'))
+      hub='<br><span style="color:var(--amber)">⬢ HUB GLOBAL — +propagação (aeroporto · clima favorável)</span>';
     tt.innerHTML=`<b style="color:var(--ink)">${hover.name.toUpperCase()}</b> · clima ${CLIMATE_PT[hover.climate]}<br>
       Pop ${fmt(hover.pop)} · Infetados <span style="color:var(--blood)">${fmt(hover.i)}</span> · ☠ ${fmt(hover.dead)}<br>
       Deteção ${Math.round(hover.detection)}%${hover.identified?' · <span style="color:var(--amber)">IDENTIFICADO</span>':''}<br>
-      ${hover.airport?'✈ aeroporto ':''}${hover.port?'⚓ porto ':''}· healthcare ${Math.round(hover.healthcare*100)}% · ciência ${Math.round(hover.science*100)}%`;
+      ${hover.airport?'✈ aeroporto ':''}${hover.port?'⚓ porto ':''}· healthcare ${Math.round(hover.healthcare*100)}% · ciência ${Math.round(hover.science*100)}%${hub}`;
   }else tt.style.display='none';
 });
 cv.addEventListener('mouseleave',()=>{mouse.inside=false;document.getElementById('tooltip').style.display='none';});
@@ -773,6 +787,10 @@ function renderOverlays(){
     tt.style.color=S.result.win?'var(--blood)':'var(--bio)';
     document.getElementById('endReason').textContent=S.result.reason;
     const r=S.result;
+    const md=medalOf(r);
+    const me=document.getElementById('endMedal');
+    if(me){me.style.display='block';
+      me.innerHTML=`<span style="color:var(--dim)">MEDALHA · </span><b style="color:${md.c};font-size:15px">${md.m}</b>`;}
     // painel de pontuação (KPIs -> 0-1000)
     const sc=r.score||{value:0,label:'—',parts:{}};
     const P=sc.parts||{};
