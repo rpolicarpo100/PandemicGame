@@ -12,7 +12,7 @@ fs.mkdirSync(outDir, { recursive: true });
 const full = process.argv.includes('--full');
 const withUi = process.argv.includes('--ui');
 
-const steps = ['smoke.mjs', 'concurrency.mjs', 'balance.mjs'];
+const steps = ['smoke.mjs', 'concurrency.mjs', 'balance.mjs', 'agents.mjs'];
 if (full) steps.push('e2e-game.mjs');
 if (withUi) steps.push('ui.mjs');
 

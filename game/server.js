@@ -297,9 +297,11 @@ function tick() {
   // vetores zoonóticos (novo stat 'zoon'): mesmo com rotas fechadas, o agente salta
   // por reservatórios naturais — reacende surtos quando a humanidade se fecha.
   if ((stats.zoon || 0) > 0.001 && G.phase === 'running') {
+    // em modo erradicação (contagem G.eradic) até reservatórios minúsculos podem reacender
+    const minF = G.eradic > 0 ? 0.0002 : 0.002;
     const hosts = G.regions
       .map(r => ({ r, f: rmeta(r.id).pop > 0 ? r.i / rmeta(r.id).pop : 0 }))
-      .filter(h => h.f > 0.002).sort((a, b) => b.f - a.f);
+      .filter(h => h.f > minF).sort((a, b) => b.f - a.f);
     const best = hosts[0];
     if (best) {
       const p = Math.min(0.5, CFG.zoonBase * (stats.zoon || 0) * best.f * 100);
@@ -311,8 +313,9 @@ function tick() {
           const wasClean = dst.i <= 0;
           dst.i += seed; G.cumInf += seed; dst.s = Math.max(0, dst.s - seed);
           if (wasClean) {
+            G.eradic = 0;   // um salto zoonótico aborta a contagem de erradicação
             log(`Salto zoonótico para ${rmeta(dst.id).name} (reservatórios naturais)`, 'spread');
-            if (Math.random() < 0.3) news('OMS', `Casos isolados em ${rmeta(dst.id).name} sem ligação a rotas conhecidas`, 'wire');
+            news('OMS', `Casos isolados em ${rmeta(dst.id).name} sem ligação a rotas conhecidas — ronda de erradicação comprometida`, 'alert');
           }
         }
       }
@@ -368,10 +371,15 @@ function tick() {
   if (G.stage >= 7) {
     for (const r of G.regions) {
       const meta = rmeta(r.id);
-      const rate = r.s * 0.024 * CFG.vaxMassRate * (0.4 + meta.science) * (1 - 0.85 * (stats.refuse || 0));
+      let rf = 1 - 0.85 * (stats.refuse || 0);
+      // distúrbios civis: cidades identificadas em colapso (>2% mortos) suspendem a campanha
+      if (G.owned.includes('c_dist') && r.identified && meta.pop > 0 && r.dead / meta.pop > 0.02) rf *= 0.25;
+      const rate = r.s * 0.024 * CFG.vaxMassRate * (0.4 + meta.science) * rf;
       const v = Math.min(r.s, rate);
       r.vaccinated += v; r.s -= v;
     }
+    milestone('civ_unrest', G.owned.includes('c_dist') && G.regions.some(r => r.identified && rmeta(r.id).pop > 0 && r.dead / rmeta(r.id).pop > 0.02),
+      'PRESS', 'Distúrbios civis suspendem vacinação em zonas em colapso', 'panic');
   }
 
   // adaptive humanity (bounded, SPEC §11.1/§11.2)
@@ -493,6 +501,7 @@ function doAction(body) {
       if (G.phase !== 'running') return { error: 'not running' };
       const n = NODES.find(x => x.id === body.node);
       if (!n) return { error: 'unknown node' };
+      if (n.agentOnly && n.agentOnly !== G.agent) return { error: 'agent exclusive' };
       if (G.owned.includes(n.id)) return { error: 'already owned' };
       if (!n.req.every(r => G.owned.includes(r))) return { error: 'prerequisite missing' };
       const cost = Math.round(n.cost * G.stats.costMod);
@@ -566,6 +575,8 @@ function publicState() {
         identified: r.identified, treatment: r.treatment, vaccinated: r.vaccinated };
     }),
     player: { costMod: G.stats.costMod, stealth: Math.round(G.stats.stealth * 100) / 100,
+              zoon: Math.round(G.stats.zoon * 100) / 100, refuse: Math.round(G.stats.refuse * 100) / 100,
+              detectMod: Math.round(G.stats.detectMod * 100) / 100, leth: Math.round(G.stats.leth * 10000) / 100,
               startRegion: G.startRegion },
     pendingEvent: G.pendingEvent ? {
       id: G.pendingEvent.id, name: G.pendingEvent.name, desc: G.pendingEvent.desc,
@@ -577,7 +588,7 @@ function publicState() {
     scenario: G.scenario,
     agent: (AGENTS.find(a => a.id === G.agent) || AGENTS[0]).id,
     scenarios: Object.values(SCENARIOS).filter(x => x.id !== 'standard'),
-    meta: { nodes: NODES, edges: EDGES, agents: AGENTS.map(a => ({ id: a.id, name: a.name, icon: a.icon, tag: a.tag, desc: a.desc })), stageNames: STAGE_NAMES,
+    meta: { nodes: NODES.filter(n => !n.agentOnly || n.agentOnly === G.agent), edges: EDGES, agents: AGENTS.map(a => ({ id: a.id, name: a.name, icon: a.icon, tag: a.tag, desc: a.desc })), stageNames: STAGE_NAMES,
             clockLimit: scMul('clock', CLOCK_LIMIT),
             extinctFrac: EXTINCT_FRAC, tickMs: TICK_MS },
   };

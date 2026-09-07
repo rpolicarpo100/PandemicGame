@@ -196,8 +196,8 @@ const REGIONS = [
 // effect keys: trans, leth, stealth(+), cureResist(+), cross, dnaGain, costMod,
 //              detectMod, dense, sparse, climate.<c>, incub(flag)
 
-const N = (id, name, tree, cost, req, effects, tags, desc) =>
-  ({ id, name, tree, cost, req, effects, tags, desc });
+const N = (id, name, tree, cost, req, effects, tags, desc, agentOnly) =>
+  ({ id, name, tree, cost, req, effects, tags, desc, agentOnly });
 
 const NODES = [
   // TRANSMISSION
@@ -256,6 +256,13 @@ const NODES = [
   N('c_dist',    'Distúrbios Civis',    'caos', 85, [],             [{k:'refuse',add:0.15},{k:'trans',mul:1.05}], ['social'], 'Protestos e aglomerações espalham o agente.'),
   N('c_desconf', 'Desconfiança Sanitária','caos', 105, ['c_dist'],   [{k:'refuse',add:0.18},{k:'detectMod',mul:0.97}], ['social','resistance'], 'Vacinas e hospitais são evitados.'),
   N('c_anarchy', 'ANARQUIA GLOBAL',     'caos', 200, ['c_neg','c_desconf'], [{k:'refuse',add:0.30},{k:'leth',mul:1.15},{k:'detectMod',mul:1.10}], ['ultimate','social'], 'Contra-medidas colapsam; a morte acelera.'),
+  // ESPECIALIZAÇÃO EXCLUSIVA POR AGENTE (visível só com o tipo ativo)
+  N('sp_bac',   'Biofilme Proteico',   'specialization', 100, [], [{k:'cureResist',add:0.15},{k:'climate.temperate',mul:1.08}], ['specialization'], 'Exclusivo Bactéria: biofilme dificulta tratamentos.', 'bacteria'),
+  N('sp_vir',   'Hipermutação Viral',  'specialization', 120, [], [{k:'trans',mul:1.10},{k:'dnaGain',mul:1.10}], ['specialization'], 'Exclusivo Vírus: deriva genética acelerada.', 'virus'),
+  N('sp_fun',   'Micélios Urbanos',    'specialization', 110, [], [{k:'dense',mul:1.15},{k:'stealth',add:0.08}], ['specialization'], 'Exclusivo Fungo: micélio esconde o foco.', 'fungo'),
+  N('sp_pri',   'Conformação Silenciosa','specialization', 105, [], [{k:'detectMod',mul:0.80}], ['specialization'], 'Exclusivo Prião: príões quase indetetáveis.', 'priao'),
+  N('sp_nano',  'Criptografia Genética','specialization', 110, [], [{k:'costMod',mul:0.92},{k:'dnaGain',mul:1.06}], ['specialization'], 'Exclusivo Nano-vírus: edição de custo zero.', 'nano'),
+  N('sp_bio',   'Cepo de Combate',     'specialization', 130, [], [{k:'leth',mul:1.20},{k:'trans',mul:1.04},{k:'detectMod',mul:1.10}], ['specialization'], 'Exclusivo Arma Biológica: cepo otimizado p/ guerra.', 'bio'),
 ];
 
 // ---------- EMERGENT BUILDS (tag rule engine, SPEC §8.1) ----------

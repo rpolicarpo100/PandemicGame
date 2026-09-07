@@ -131,6 +131,7 @@ function recordGame(G, kind) {
     start: G.startRegion || null,
     win: kind === 'win', reason: (G.result && G.result.reason) || kind,
     score: (G.result && G.result.score && G.result.score.value) || 0,
+    agent: G.agent || null,
   };
   S.ledger.push(rec);
   if (S.ledger.length > 300) S.ledger.shift();
