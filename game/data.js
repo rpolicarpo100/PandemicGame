@@ -244,6 +244,18 @@ const NODES = [
   N('u_shadow', 'SHADOW PROTOCOL',   'ultimate', 260, ['s_asym','s_incub'], [{k:'stealth',add:0.25},{k:'trans',mul:1.10},{k:'detectMod',mul:0.70}], ['ultimate','stealth'], 'O agente torna-se quase indetetável.'),
   N('u_collapse','GLOBAL COLLAPSE',  'ultimate', 300, ['l_systemic'], [{k:'leth',mul:2.50},{k:'trans',mul:1.15},{k:'detectMod',mul:1.30}], ['ultimate','lethal','collapse'], 'Letalidade extrema à escala global.'),
   N('u_immortal','IMMORTAL STRAIN',  'ultimate', 280, ['a_res2'], [{k:'cureResist',add:0.30},{k:'detectMod',mul:0.85}], ['ultimate','resistance'], 'Praticamente impossível de tratar.'),
+  // VETORES (zoonose) — novo stat 'zoon': saltos zoonóticos que contornam fechos de rotas
+  N('v_praga',   'Reservatórios Urbanos','vetor', 95,  [],            [{k:'zoon',add:0.15}], ['animal','urban'], 'Ratos e esgotos perpetuam o ciclo urbano.'),
+  N('v_aves',    'Rotas Aviárias',      'vetor', 100, [],            [{k:'zoon',add:0.18},{k:'detectMod',mul:1.05}], ['animal','airborne'], 'Aves migratórias transportam o agente entre continentes.'),
+  N('v_livestock','Pecuária Industrial', 'vetor', 105, [],           [{k:'zoon',add:0.18},{k:'climate.humid',mul:1.10}], ['animal','water'], 'Gado amplifica o agente em climas húmidos.'),
+  N('v_insetos', 'Super-Vetores',       'vetor', 120, ['v_praga'],   [{k:'zoon',add:0.20},{k:'climate.hot',mul:1.10}], ['vector','insect'], 'Artropodes resistentes alargam o alcance.'),
+  N('v_master',  'MESTRES ZOONÓTICOS',  'vetor', 190, ['v_insetos','v_aves'], [{k:'zoon',add:0.35},{k:'stealth',add:0.10}], ['ultimate','animal','vector'], 'O agente vive no mundo natural: saltos constantes.'),
+  // CAOS SOCIAL — novo stat 'refuse': a população recusa vacinas/tratamentos
+  N('c_buzz',    'Ruído Mediático',     'caos', 95,  [],             [{k:'refuse',add:0.12},{k:'detectMod',mul:0.96}], ['social','media'], 'Desinformação confunde a vigilância.'),
+  N('c_neg',     'Negacionismo',        'caos', 115, ['c_buzz'],     [{k:'refuse',add:0.18}], ['social'], 'Parte da população nega a ameaça.'),
+  N('c_dist',    'Distúrbios Civis',    'caos', 105, [],             [{k:'refuse',add:0.15},{k:'trans',mul:1.05}], ['social'], 'Protestos e aglomerações espalham o agente.'),
+  N('c_desconf', 'Desconfiança Sanitária','caos', 120, ['c_dist'],   [{k:'refuse',add:0.18},{k:'detectMod',mul:0.97}], ['social','resistance'], 'Vacinas e hospitais são evitados.'),
+  N('c_anarchy', 'ANARQUIA GLOBAL',     'caos', 220, ['c_neg','c_desconf'], [{k:'refuse',add:0.30},{k:'leth',mul:1.15},{k:'detectMod',mul:1.10}], ['ultimate','social'], 'Contra-medidas colapsam; a morte acelera.'),
 ];
 
 // ---------- EMERGENT BUILDS (tag rule engine, SPEC §8.1) ----------
@@ -290,4 +302,26 @@ const EVENTS = [
     ]},
 ];
 
-module.exports = { REGIONS, NODES, BUILDS, EVENTS };
+// ---------- AGENTES (tipos de patogénio escolhíveis no briefing) ----------
+// effects usam o MESMO schema dos nós; cada tipo dá um perfil de jogo distinto.
+const AGENTS = [
+  { id:'bacteria', name:'Bactéria', icon:'🦠', tag:'EQUILÍBRIO',
+    desc:'Perfil de referência. Sem bónus nem penalidades — domina o básico com consistência.',
+    effects: [] },
+  { id:'virus', name:'Vírus', icon:'🧬', tag:'CONTÁGIO RÁPIDO',
+    desc:'Propaga-se mais depressa (+15%), mas é mais visível para a vigilância.',
+    effects: [{k:'trans',mul:1.15},{k:'detectMod',mul:1.10}] },
+  { id:'fungo', name:'Fungo', icon:'🍄', tag:'RESISTENTE A CLIMAS',
+    desc:'Prospera em qualquer clima (+10–15%), à custa de propagação mais lenta.',
+    effects: [{k:'climate.hot',mul:1.15},{k:'climate.cold',mul:1.15},{k:'climate.arid',mul:1.10},{k:'climate.humid',mul:1.15},{k:'trans',mul:0.95}] },
+  { id:'priao', name:'Prião', icon:'🧠', tag:'SILENCIOSO',
+    desc:'Quase invisível (deteção −15%, stealth +20%), mas transmite-se mal (−8%).',
+    effects: [{k:'stealth',add:0.20},{k:'detectMod',mul:0.85},{k:'trans',mul:0.92}] },
+  { id:'nano', name:'Nano-vírus', icon:'⚙️', tag:'TECNOLÓGICO',
+    desc:'Evolui 12% mais barato, mas rende menos DNA e é detetável (+15%).',
+    effects: [{k:'costMod',mul:0.88},{k:'dnaGain',mul:0.92},{k:'detectMod',mul:1.15}] },
+  { id:'bio', name:'Arma Biológica', icon:'☣️', tag:'LETAL',
+    desc:'Letalidade elevada (+30%) à custa de deteção muito mais fácil.',
+    effects: [{k:'leth',mul:1.30},{k:'detectMod',mul:1.15}] },
+];
+module.exports = { REGIONS, NODES, BUILDS, EVENTS, AGENTS };

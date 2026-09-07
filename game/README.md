@@ -32,7 +32,8 @@ node server.js --simtest dumb|cheap|smart   # teste de balance headless
 | §12 World simulation | 179 cidades REAIS (nomes verdadeiros) sobre **mapa-mundo real** (Natural Earth 110m); **população mundial = 8,2 mil M (valor real 2026)** — cada ponto = metrópole + hinterland; densidade, clima, healthcare, ciência, mobilidade, aeroportos/portos reais; grafo por **haversine**: land <1300km, sea <9000km (portos), air <13000km (aeroportos) → 13.426 rotas |
 | §14 Modelo temporal | Ticks; **1 tick = 2 s = 1 dia de jogo**; velocidade 1×/2×/4×/8×/pausa; relógio de 400 dias (cenários: 260–400) |
 | §15 Condições de vitória | **Vitória única: EXTINÇÃO — mortos ≥ 95% da humanidade.** Derrota: erradicação, vacina+contágio eliminado, ou relógio esgotado (a humanidade resistiu) |
-| §6/§7 Evolução | 37 nós em 7 árvores (custo + benefício + downside + tags + pré-requisitos), dados em `data.js` |
+| §6/§7 Evolução | **47 nós em 9 árvores** — as novas: SEQ.08 **VETORES & ZOONOSE** (stat `zoon`: saltos por reservatórios que contornam fechos de rotas) e SEQ.09 **CAOS SOCIAL** (stat `refuse`: a população recusa vacinas/tratamentos e o alarme abranda) |
+| Agentes (novo) | **6 tipos de agente** escolhidos no briefing (Bactéria/Vírus/Fungo/Prião/Nano-vírus/Arma Biológica) com perfis próprios no mesmo schema de efeitos; o agente escolhido persiste entre partidas |
 | §8 Emergent builds | Rule engine de tags: 6 builds (SHADOW SPREAD, GLOBAL COLLAPSE, IMMORTAL, VECTOR STORM, SILENT TIDE, URBAN PLAGUE) |
 | §9 Events | Evento de mutação a cada ~35–55 dias com 3 opções de trade-off |
 | §10 DNA | Ganho por novas infeções, presença e descoberta de regiões; gasto em evoluções |

@@ -7,7 +7,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { REGIONS, NODES, BUILDS, EVENTS } = require('./data.js');
+const { REGIONS, NODES, BUILDS, EVENTS, AGENTS } = require('./data.js');
 const dev = require('./lib/dev.js');
 
 const PORT = process.env.PORT || 3000;
@@ -31,6 +31,7 @@ const CFG = {
   awareMul:    parseFloat(process.env.AWARE_MUL    || '1.2'),   // global awareness gain multiplier
   vaccineRate: parseFloat(process.env.VACCINE_RATE || '1.2'),   // vaccine R&D speed multiplier
   vaxMassRate: parseFloat(process.env.VAX_MASS_RATE|| '1.0'),   // mass vaccination speed multiplier
+  zoonBase:    parseFloat(process.env.ZOON_BASE     || '0.0018'),// per-day zoonotic jump base (×zoon×frac×100)
 };
 
 // PvE scenario variants (variety inside PvE — SPEC §13)
@@ -88,10 +89,11 @@ const EDGES = [];
 
 // ---------- game state ----------
 let G = null;
+let AGENT_ID = 'bacteria';      // agente escolhido no briefing (persiste entre partidas)
 dev.init({ phase: () => G && G.phase, day: () => G && G.day });
 
 function baseStats() {
-  return { trans: CFG.transBase, leth: 0.0032, stealth: 0, cureResist: 0, cross: 1.0, dnaGain: 1.0,
+  return { trans: CFG.transBase, leth: 0.0032, stealth: 0, cureResist: 0, refuse: 0, zoon: 0, cross: 1.0, dnaGain: 1.0,
            costMod: 1.0, detectMod: 1.0, dense: 1.0, sparse: 1.0, incub: false,
            climate: { hot: 0.55, cold: 0.50, arid: 0.50, humid: 0.60, temperate: 0.75 } };
 }
@@ -103,8 +105,9 @@ function applyEffects(stats, effects) {
       stats.climate[c] = (stats.climate[c] || 1) * (e.mul !== undefined ? e.mul : 1) + (e.add || 0);
     } else if (e.k === 'incub') {
       stats.incub = true;
-    } else if (e.k === 'stealth' || e.k === 'cureResist') {
-      stats[e.k] = Math.min(e.k === 'stealth' ? 0.80 : 0.75, stats[e.k] + (e.add || 0));
+    } else if (e.k === 'stealth' || e.k === 'cureResist' || e.k === 'refuse' || e.k === 'zoon') {
+      const cap = { stealth: 0.80, cureResist: 0.75, refuse: 0.80, zoon: 1.0 }[e.k];
+      stats[e.k] = Math.min(cap, stats[e.k] + (e.add || 0));
     } else if (e.mul !== undefined) {
       stats[e.k] *= e.mul;
     } else if (e.add !== undefined) {
@@ -113,8 +116,9 @@ function applyEffects(stats, effects) {
   }
 }
 
-function computeStats(ownedNodes, extraEffects) {
+function computeStats(ownedNodes, extraEffects, agentEffects) {
   const s = baseStats();
+  if (agentEffects && agentEffects.length) applyEffects(s, agentEffects);
   for (const id of ownedNodes) {
     const n = NODES.find(x => x.id === id);
     if (n) applyEffects(s, n.effects);
@@ -129,7 +133,8 @@ function newGame(scenario) {
     phase: 'setup', day: 0, speed: 1, acc: 0,
     scenario: sc ? sc.id : null, sc,
     dna: sc ? sc.startDna : 60, owned: [], extraFx: [], tags: new Set(),
-    stats: computeStats([], []),
+    agent: AGENT_ID,
+    stats: computeStats([], [], (AGENTS.find(a => a.id === AGENT_ID) || {}).effects),
     regions: REGIONS.map(r => ({ id: r.id, s: r.pop, i: 0, dead: 0, vaccinated: 0,
       detection: 0, detNews: 0, identified: false, treatment: 0, closures: { air: false, sea: false, land: false } })),
     awareness: 0, stage: 0, vaccine: 0, treatTech: 0,
@@ -233,7 +238,7 @@ function tick() {
     // colapso dos cuidados: com a humanidade em agonia (muitos mortos), a cura
     // deixa de acompanhar — a morte torna-se irreversível nos estádios finais.
     const careCollapse = Math.max(0.02, 1 - 1.04 * (G.regions.reduce((z, x) => z + x.dead, 0) / WORLD_POP));
-    const cureRate = (0.004 + 0.060 * r.treatment * scMul('treatMul', 1)) * (1 - stats.cureResist) * careCollapse;
+    const cureRate = (0.004 + 0.060 * r.treatment * scMul('treatMul', 1)) * (1 - stats.cureResist) * (1 - 0.45 * (stats.refuse || 0)) * careCollapse;
     const cured = Math.min(Math.max(r.i - deaths, 0) * cureRate, r.i - deaths);
     r.i = Math.max(0, r.i + newI - deaths - cured);
     if (r.i > 0 && r.s > 0 && r.i < r.s * 0.0004 && Math.random() < 0.10) r.i = 0; // outbreak fizzles out (fração da cidade)
@@ -289,6 +294,31 @@ function tick() {
     }
   }
 
+  // vetores zoonóticos (novo stat 'zoon'): mesmo com rotas fechadas, o agente salta
+  // por reservatórios naturais — reacende surtos quando a humanidade se fecha.
+  if ((stats.zoon || 0) > 0.001 && G.phase === 'running') {
+    const hosts = G.regions
+      .map(r => ({ r, f: rmeta(r.id).pop > 0 ? r.i / rmeta(r.id).pop : 0 }))
+      .filter(h => h.f > 0.002).sort((a, b) => b.f - a.f);
+    const best = hosts[0];
+    if (best) {
+      const p = Math.min(0.5, CFG.zoonBase * (stats.zoon || 0) * best.f * 100);
+      if (Math.random() < p) {
+        const cands = G.regions.filter(x => x.s > 0.01);
+        if (cands.length) {
+          const dst = cands[Math.floor(Math.random() * cands.length)];
+          const seed = Math.min(dst.s * CFG.seedToFrac, Math.max(dst.s * CFG.seedToMinF, dst.s * 0.00005));
+          const wasClean = dst.i <= 0;
+          dst.i += seed; G.cumInf += seed; dst.s = Math.max(0, dst.s - seed);
+          if (wasClean) {
+            log(`Salto zoonótico para ${rmeta(dst.id).name} (reservatórios naturais)`, 'spread');
+            if (Math.random() < 0.3) news('OMS', `Casos isolados em ${rmeta(dst.id).name} sem ligação a rotas conhecidas`, 'wire');
+          }
+        }
+      }
+    }
+  }
+
   // DNA income
   G.dna += (totalNewI * 0.090 + 0.20) * stats.dnaGain;
 
@@ -309,7 +339,7 @@ function tick() {
   if (identified.length) {
     const idPop = identified.reduce((s, r) => s + rmeta(r.id).pop, 0);
     const avgSci = identified.reduce((s, r) => s + rmeta(r.id).science * rmeta(r.id).pop, 0) / idPop;
-    G.awareness = Math.min(100, G.awareness + (0.35 + (idPop / WORLD_POP) * 3.8) * CFG.awareMul * (0.4 + avgSci) * scMul('awarenessMul', 1) * (G.adapt.boostInvestigation ? 1.15 : 1));
+    G.awareness = Math.min(100, G.awareness + (0.35 + (idPop / WORLD_POP) * 3.8) * CFG.awareMul * (0.4 + avgSci) * scMul('awarenessMul', 1) * (G.adapt.boostInvestigation ? 1.15 : 1) * (1 - 0.30 * (stats.refuse || 0)));
   }
   let newStage = 0;
   for (let s = 1; s < STAGE_THRESH.length - 1; s++) if (G.awareness >= STAGE_THRESH[s]) newStage = s;
@@ -338,7 +368,7 @@ function tick() {
   if (G.stage >= 7) {
     for (const r of G.regions) {
       const meta = rmeta(r.id);
-      const rate = r.s * 0.024 * CFG.vaxMassRate * (0.4 + meta.science);
+      const rate = r.s * 0.024 * CFG.vaxMassRate * (0.4 + meta.science) * (1 - 0.85 * (stats.refuse || 0));
       const v = Math.min(r.s, rate);
       r.vaccinated += v; r.s -= v;
     }
@@ -435,6 +465,14 @@ function endGame(win, reason) {
 function doAction(body) {
   if (!body || !body.type) return { error: 'bad action' };
   switch (body.type) {
+    case 'agent': {
+      const a = AGENTS.find(x => x.id === body.agent);
+      if (!a) return { error: 'bad agent' };
+      AGENT_ID = a.id;
+      if (G) { G.agent = a.id; G.stats = computeStats(G.owned, G.extraFx, a.effects); }
+      log(`Agente selecionado: ${a.icon} ${a.name}`, 'player');
+      return { ok: true, agent: a.id };
+    }
     case 'seed': {
       if (G.phase !== 'setup') return { error: 'not in setup' };
       if (!G.scenario) return { error: 'choose a scenario first' };
@@ -471,7 +509,7 @@ function doAction(body) {
           log(`EMERGENT BUILD: ${b.name} — ${b.desc}`, 'build');
         }
       }
-      G.stats = computeStats(G.owned, G.extraFx);
+      G.stats = computeStats(G.owned, G.extraFx, (AGENTS.find(a => a.id === G.agent) || {}).effects);
       log(`Evolução: ${n.name} (-${cost} DNA)`, 'player');
       return { ok: true, dna: G.dna };
     }
@@ -480,7 +518,7 @@ function doAction(body) {
       const opt = G.pendingEvent.options[body.option];
       if (!opt) return { error: 'bad option' };
       G.extraFx.push(...opt.effects);
-      G.stats = computeStats(G.owned, G.extraFx);
+      G.stats = computeStats(G.owned, G.extraFx, (AGENTS.find(a => a.id === G.agent) || {}).effects);
       log(`Evento ${G.pendingEvent.name}: ${opt.label} (${opt.desc})`, 'event');
       G.pendingEvent = null;
       G.nextEventDay = G.day + 35 + Math.floor(Math.random() * 20);
@@ -536,8 +574,9 @@ function publicState() {
     news: G.news.slice(-50),
     result: G.result,
     scenario: G.scenario,
+    agent: (AGENTS.find(a => a.id === G.agent) || AGENTS[0]).id,
     scenarios: Object.values(SCENARIOS).filter(x => x.id !== 'standard'),
-    meta: { nodes: NODES, edges: EDGES, stageNames: STAGE_NAMES,
+    meta: { nodes: NODES, edges: EDGES, agents: AGENTS.map(a => ({ id: a.id, name: a.name, icon: a.icon, tag: a.tag, desc: a.desc })), stageNames: STAGE_NAMES,
             clockLimit: scMul('clock', CLOCK_LIMIT),
             extinctFrac: EXTINCT_FRAC, tickMs: TICK_MS },
   };
@@ -546,13 +585,14 @@ function publicState() {
 // ---------- sim test (headless bots, balance pacing) ----------
 const SMART_PRIO = ['t_mob1','a_heat','a_cold','t_air1','s_incub','s_asym','m_rate','a_humid','a_dry',
   'a_urban','sp_rapid','s_lowdet','t_air2','t_contact1','t_water1','m_adaptive','a_extreme','m_controlled',
-  't_animal1','t_vector1','a_rural'];
+  't_animal1','t_vector1','a_rural','c_buzz','v_aves','c_dist','v_livestock','c_neg','v_insetos','v_master','c_anarchy'];
 
 function simTest(strategy) {
   strategy = strategy || process.argv[3] || 'cheap';
   const scenIdx = process.argv.indexOf('--scenario');
   const scen = scenIdx > -1 ? process.argv[scenIdx + 1] : 'standard';
   G = newGame(SCENARIOS[scen] ? scen : 'standard');
+  if (process.env.SIM_AGENT && AGENTS.find(x => x.id === process.env.SIM_AGENT)) doAction({ type: 'agent', agent: process.env.SIM_AGENT });
   let region;
   if (strategy === 'smart') {
     const cands = REGIONS.filter(r => (r.climate === 'temperate' || r.climate === 'humid') && r.airport)
