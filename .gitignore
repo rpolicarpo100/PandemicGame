@@ -11,3 +11,6 @@ qa/node_modules/
 # segredos (C3): chaves e credenciais nunca entram no repositório
 pandemicgame_deploy_key*
 .ssh/
+
+# runbook local com chaves geradas — nunca commitar
+DEPLOY-RENDER*.md
