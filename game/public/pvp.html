@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PANDEMIC EVOLUTION · VIRUS (PvP)</title>
+<style>
+:root{
+  --bg:#070a05; --panel:#0c110a; --panel2:#101709; --line:#1e2a14; --line2:#2c3d1e;
+  --txt:#d7e6c8; --dim:#7f9470; --dim2:#5a6d4e;
+  --bio:#a8ff3e; --bio2:#daff70; --red:#ff3b4d; --amber:#ffc846; --cyan:#4de3ff; --violet:#b48cff;
+  --mono:ui-monospace,'Cascadia Mono','JetBrains Mono',Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12.5px;letter-spacing:.02em;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")}
+#app{position:relative;z-index:1;height:100%;display:flex;flex-direction:column}
+button{font-family:var(--mono);cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+input{font-family:var(--mono);background:#0a0f07;border:1px solid var(--line2);color:var(--txt);padding:8px 10px;letter-spacing:.1em}
+input:focus{outline:1px solid var(--bio)}
+
+/* ---------- top bar ---------- */
+#top{display:flex;align-items:center;gap:14px;padding:8px 14px;border-bottom:1px solid var(--line);background:rgba(7,10,5,.92);flex:none}
+#top .logo{font-weight:700;letter-spacing:.18em;font-size:12px}
+#top .logo b{color:var(--bio)}
+#top .logo span{color:var(--dim)}
+.sp{flex:1}
+#codeBox{display:flex;align-items:center;gap:8px;border:1px solid var(--line2);padding:3px 10px;background:var(--panel)}
+#codeBox .lbl{color:var(--dim);font-size:10px;letter-spacing:.2em}
+#codeBox .code{font-size:15px;letter-spacing:.3em;color:var(--bio);font-weight:700;cursor:pointer}
+#codeBox .code:hover{color:var(--bio2)}
+.hud{font-size:10.5px;color:var(--dim);letter-spacing:.12em;white-space:nowrap}
+.hud b{color:var(--txt)}
+#phaseTag{color:var(--amber);letter-spacing:.25em;font-size:10px}
+button.ghost{background:transparent;border:1px solid var(--line2);color:var(--txt);padding:6px 12px;font-size:10.5px;letter-spacing:.15em}
+button.ghost:hover{border-color:var(--red);color:var(--red)}
+#toast{position:fixed;top:52px;left:50%;transform:translateX(-50%);background:#1a0f10;border:1px solid var(--red);color:#ffb9be;padding:8px 16px;font-size:11px;letter-spacing:.08em;display:none;z-index:50}
+
+/* ---------- main screens ---------- */
+.screen{flex:1;overflow:auto;display:none;flex-direction:column}
+.screen.on{display:flex}
+
+/* ---------- home ---------- */
+#sc-home{align-items:center;justify-content:center;background:
+  radial-gradient(1000px 500px at 50% -10%, rgba(168,255,62,.06), transparent 60%)}
+#sc-home .box{width:min(620px,92%);border:1px solid var(--line2);background:rgba(12,17,10,.9);padding:34px 38px;position:relative}
+#sc-home .box::before{content:'VIRUS';position:absolute;top:-9px;right:14px;background:var(--bio);color:#0a0d06;font-size:10px;letter-spacing:.3em;padding:2px 8px;font-weight:700}
+#sc-home h1{font-size:22px;letter-spacing:.14em;margin:6px 0 4px}
+#sc-home h1 b{color:var(--bio)}
+#sc-home .sub{color:var(--dim);font-size:11.5px;line-height:1.6;margin-bottom:18px}
+#sc-home .sub b{color:var(--txt)}
+#sc-home .cols{display:flex;gap:26px;flex-wrap:wrap}
+#sc-home .col{flex:1;min-width:240px}
+#sc-home h3{color:var(--bio);font-size:10.5px;letter-spacing:.25em;margin:14px 0 8px;border-top:1px dashed var(--line2);padding-top:12px}
+#sc-home .rule{color:var(--dim);font-size:11px;line-height:1.55;margin:3px 0}
+#sc-home .rule i{color:var(--amber);font-style:normal}
+#sc-home .rowbt{display:flex;gap:10px;margin-top:8px}
+#sc-home input#joinCode{flex:1;text-transform:uppercase;letter-spacing:.35em;font-size:14px}
+#btnCreate{background:var(--bio);border:1px solid var(--bio);color:#0a0d06;padding:10px 18px;font-weight:700;letter-spacing:.15em;font-size:11.5px}
+#btnCreate:hover{background:var(--bio2)}
+#btnJoin{border:1px solid var(--bio);background:transparent;color:var(--bio);padding:10px 16px;font-weight:700;letter-spacing:.15em;font-size:11.5px}
+#btnJoin:hover{background:rgba(168,255,62,.08)}
+.mist{color:var(--dim2);font-size:10.5px;margin-top:16px;line-height:1.6}
+
+/* ---------- lobby ---------- */
+#sc-lobby{padding:18px}
+#sc-lobby .wrap2{width:min(1060px,100%);margin:0 auto}
+.lb-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px}
+.lb-head h2{font-size:15px;letter-spacing:.3em}
+.lb-head h2 b{color:var(--bio)}
+.lb-head .hint{color:var(--dim);font-size:11px}
+#btnLeaveLobby{margin-left:auto}
+.lb-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-top:14px}
+@media(max-width:860px){.lb-grid{grid-template-columns:1fr}}
+.panel{border:1px solid var(--line);background:rgba(12,17,10,.85);padding:12px}
+.panel h3{font-size:10.5px;letter-spacing:.25em;color:var(--dim);margin-bottom:10px;border-bottom:1px dashed var(--line2);padding-bottom:6px}
+.pslot{display:flex;align-items:center;gap:10px;border:1px solid var(--line);padding:7px 10px;margin-bottom:6px;background:var(--panel2)}
+.pslot.me{border-color:var(--bio)}
+.pslot .ic{font-size:17px;width:24px;text-align:center}
+.pslot .who{flex:1;min-width:0}
+.pslot .who .nm{font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pslot .who .meta{color:var(--dim);font-size:10px;margin-top:2px}
+.pslot .tag{font-size:9px;letter-spacing:.14em;padding:2px 6px;border:1px solid var(--line2);color:var(--dim)}
+.pslot .tag.rdy{color:var(--bio);border-color:var(--bio)}
+.pslot .tag.host{color:var(--amber);border-color:var(--amber)}
+.pslot .tag.you{color:var(--cyan);border-color:var(--cyan)}
+.ag-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.ag-chip{border:1px solid var(--line2);background:transparent;color:var(--txt);padding:7px 9px;font-size:11px;text-align:left;line-height:1.35;flex:1 1 45%;min-width:180px}
+.ag-chip .a-ic{font-size:15px}
+.ag-chip .a-tag{display:block;color:var(--dim);font-size:9px;letter-spacing:.08em;margin-top:2px}
+.ag-chip.sel{border-color:var(--bio);color:var(--bio);background:rgba(168,255,62,.07)}
+.ag-chip.taken{border-color:var(--line);color:var(--dim2);pointer-events:none}
+#seedSel{width:100%;font-size:11px;background:#0a0f07;color:var(--txt);padding:7px;border:1px solid var(--line2)}
+#seedStatus{color:var(--dim);font-size:10.5px;margin:6px 0 10px}
+#seedStatus b{color:var(--amber)}
+#btnReady{width:100%;border:1px solid var(--bio);background:transparent;color:var(--bio);padding:11px;font-weight:700;letter-spacing:.2em;font-size:12px}
+#btnReady:hover{background:rgba(168,255,62,.1)}
+#btnReady.done{background:var(--bio);color:#0a0d06}
+#hostStart{width:100%;margin-top:8px;border:1px solid var(--amber);background:transparent;color:var(--amber);padding:11px;font-weight:700;letter-spacing:.2em;font-size:12px}
+#hostStart:hover{background:rgba(255,200,70,.1)}
+#hostStart:disabled{opacity:.3}
+.lb-map{margin-top:14px}
+canvas#mapLobby{width:100%;height:auto;display:block;border:1px solid var(--line);cursor:crosshair}
+#mapHint{color:var(--dim2);font-size:10px;margin-top:6px}
+
+/* ---------- game ---------- */
+#sc-game{height:100%;overflow:hidden}
+#gTop{display:flex;align-items:center;gap:18px;padding:8px 14px;border-bottom:1px solid var(--line);background:rgba(7,10,5,.95);flex:none;flex-wrap:wrap}
+.gstat{font-size:11px;letter-spacing:.1em}
+.gstat .k{color:var(--dim);font-size:9.5px;display:block;letter-spacing:.2em}
+.gstat .v{font-weight:700;font-size:14px}
+#dayVal{color:var(--bio)}
+.speedbtns{display:flex;gap:4px}
+.speedbtns button{border:1px solid var(--line2);background:transparent;color:var(--dim);font-size:10px;padding:4px 8px;letter-spacing:.1em}
+.speedbtns button.act{border-color:var(--bio);color:var(--bio)}
+.speedbtns button:disabled{opacity:.3;cursor:not-allowed}
+#dnaVal{color:var(--amber)}
+#humStage{color:var(--red)}
+.rival{display:flex;align-items:center;gap:6px;border:1px solid var(--line);padding:3px 8px;font-size:10px;background:var(--panel2)}
+.rival .ic{font-size:13px}
+.rival .nm{color:var(--dim)}
+.rival.dead{opacity:.45}
+.rival.dead .nm::after{content:' · erradicado';color:var(--red)}
+.rival.me{border-color:var(--bio)}
+#gMain{flex:1;display:grid;grid-template-columns:300px 1fr;min-height:0}
+@media(max-width:900px){#gMain{grid-template-columns:1fr}}
+#side{border-right:1px solid var(--line);background:rgba(10,14,8,.9);display:flex;flex-direction:column;min-height:0}
+#side .tabbar{display:flex;border-bottom:1px solid var(--line)}
+#side .tabbar button{flex:1;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--dim);padding:8px 4px;font-size:10px;letter-spacing:.18em}
+#side .tabbar button.act{color:var(--txt);border-bottom-color:var(--bio)}
+#side .tabbody{flex:1;overflow:auto;padding:10px}
+.ncol{display:flex;flex-direction:column;gap:6px}
+.node{border:1px solid var(--line);padding:7px 9px;font-size:11px;background:var(--panel2);line-height:1.4}
+.node .n-top{display:flex;justify-content:space-between;gap:8px}
+.node .n-top b{font-size:11px}
+.node .n-dna{color:var(--amber);white-space:nowrap}
+.node .n-desc{color:var(--dim);font-size:10px;margin-top:3px}
+.node.lock{opacity:.45}
+.node.buyable{border-color:var(--bio);cursor:pointer}
+.node.buyable:hover{background:rgba(168,255,62,.08)}
+.node.owned{border-color:var(--bio);background:rgba(168,255,62,.05)}
+.node.owned .n-dna{color:var(--bio);text-decoration:line-through}
+.node .n-eff{color:var(--dim2);font-size:9.5px;margin-top:2px}
+#fleetInfo,#regionInfo{font-size:10.5px;color:var(--dim);line-height:1.6;white-space:pre-wrap}
+#regionInfo b{color:var(--txt)}
+#mapwrap{position:relative;min-height:0;overflow:hidden}
+#mapwrap canvas#mapG{position:absolute;inset:0;width:100%;height:100%}
+#worldPanels{position:absolute;right:10px;bottom:10px;width:260px;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.wpanel{border:1px solid var(--line);background:rgba(8,11,6,.92);padding:8px 10px}
+.wpanel .wk{font-size:9px;letter-spacing:.22em;color:var(--dim)}
+.bar{height:7px;background:#141c0e;border:1px solid var(--line2);margin-top:5px;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--bio)}
+.bar.hum i{background:var(--red)}
+.bar.vac i{background:var(--cyan)}
+#feedBox{position:absolute;left:10px;bottom:10px;width:min(430px,46%);pointer-events:none}
+#feed{max-height:118px;overflow:hidden;display:flex;flex-direction:column-reverse;gap:2px}
+#feed div{font-size:10px;color:var(--dim);border-left:2px solid var(--line2);padding-left:6px;line-height:1.4}
+#feed div.warn{border-left-color:var(--amber);color:#e8d9a8}
+#feed div.alert{border-left-color:var(--red);color:#f0b3b8}
+#observeTag{position:absolute;top:8px;left:50%;transform:translateX(-50%);border:1px solid var(--red);color:var(--red);background:rgba(30,6,8,.9);font-size:10px;letter-spacing:.3em;padding:4px 12px;z-index:5}
+/* world dots */
+#mapwrap .selmark{position:absolute;pointer-events:none;color:var(--amber);font-size:13px;z-index:3}
+
+/* ---------- end ---------- */
+#sc-end{overflow:auto;align-items:center;justify-content:flex-start;padding:36px 16px;
+  background:radial-gradient(900px 420px at 50% -8%, rgba(168,255,62,.07), transparent 60%)}
+#sc-end .wrap3{width:min(760px,100%)}
+#sc-end h2{font-size:16px;letter-spacing:.3em;text-align:center;margin-bottom:4px}
+#sc-end .reason{color:var(--dim);text-align:center;font-size:12px;margin-bottom:20px}
+.rankrow{display:flex;align-items:center;gap:12px;border:1px solid var(--line);padding:12px 14px;margin-bottom:8px;background:rgba(12,17,10,.9)}
+.rankrow.win{border-color:var(--bio);box-shadow:0 0 0 1px var(--bio) inset}
+.rankrow .pos{font-size:18px;width:34px;text-align:center;color:var(--dim)}
+.rankrow.win .pos{color:var(--bio)}
+.rankrow .ic{font-size:22px}
+.rankrow .who{flex:1}
+.rankrow .who .nm{font-weight:700}
+.rankrow .who .det{color:var(--dim);font-size:10px;margin-top:2px}
+.rankrow .pts{font-size:20px;color:var(--bio);font-weight:700;text-align:right}
+.rankrow .pts small{display:block;color:var(--dim);font-size:9px;letter-spacing:.2em;font-weight:400}
+.rankrow .pct{width:120px}
+.rankrow .pct .bar i{background:var(--bio)}
+.partgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 14px}
+@media(max-width:700px){.partgrid{grid-template-columns:repeat(2,1fr)}}
+.part{border:1px solid var(--line);background:rgba(12,17,10,.85);padding:8px 10px;font-size:10px;color:var(--dim)}
+.part b{display:block;color:var(--txt);font-size:13px;margin-top:3px}
+#btnAfter{border:1px solid var(--bio);background:transparent;color:var(--bio);padding:11px 20px;letter-spacing:.2em;font-weight:700;font-size:12px;display:block;margin:16px auto 0}
+#btnAfter:hover{background:rgba(168,255,62,.1)}
+.win-note{text-align:center;color:var(--dim);font-size:10.5px;margin-top:10px;line-height:1.6}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#22301a;border:1px solid #101608}::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="logo"><b>PANDEMIC</b> EVOLUTION <span>//</span> <span id="phaseTag">VIRUS · PVP</span></div>
+    <div class="sp"></div>
+    <div id="codeBox" style="display:none"><span class="lbl">SALA</span><span class="code" id="roomCode" title="copiar código">······</span></div>
+    <div class="hud" id="topHud"></div>
+    <button class="ghost" id="btnQuit" style="display:none">✕ SAIR DA SALA</button>
+    <a class="ghost" href="/" style="padding:6px 12px;font-size:10.5px;text-decoration:none;display:inline-block">‹ HOME</a>
+  </div>
+  <div id="toast"></div>
+
+  <!-- SCREEN: entrada -->
+  <div class="screen on" id="sc-home">
+    <div class="box">
+      <h1>MODO <b>VIRUS</b></h1>
+      <div class="sub">Multi-operador: <b>2–6 agentes no mesmo mundo</b>, 179 regiões reais, uma única Humanity
+      que reage aos vossos totais. Cria uma sala ou entra com o código de 6 caracteres.</div>
+      <div class="cols">
+        <div class="col">
+          <h3>— VITÓRIA</h3>
+          <div class="rule">Não ganha <i>quem mata mais</i>. Ganha o maior <i>score composto</i> (1000 pts):
+          infeção sustentável (200) · presença regional com first-infection (250) · objetivos (100) ·
+          sobrevivência (150) · eficiência de evolução (200) · achievements (100).</div>
+          <div class="rule">Erradicado antes do fim mantém o score acumulado. Empates: eficiência, depois sobrevivência.</div>
+          <div class="rule">Relógio: <i>300 dias</i> · fim por relógio, 1 agente vivo, extinção humana ou erradicação total.</div>
+        </div>
+        <div class="col">
+          <h3>— ACESSO</h3>
+          <button id="btnCreate">＋ CRIAR SALA</button>
+          <div class="rowbt">
+            <input id="joinCode" maxlength="6" placeholder="CÓDIGO" autocomplete="off">
+            <button id="btnJoin">ENTRAR</button>
+          </div>
+          <div class="mist">O anfitrião escolhe agente + região de origem e controla o relógio. Todos escolhem
+          agentes <b>únicos</b>. As salas vivem em memória — ao reiniciar o servidor, terminam.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: lobby -->
+  <div class="screen" id="sc-lobby">
+    <div class="wrap2">
+      <div class="lb-head">
+        <h2>LOBBY · <b id="lbCode">·······</b></h2>
+        <span class="hint" id="lbHint"></span>
+        <button class="ghost" id="btnLeaveLobby">SAIR DA SALA</button>
+      </div>
+      <div class="lb-grid">
+        <div>
+          <div class="panel">
+            <h3>OPERADORES (&nbsp;<span id="lbCount">0</span>/6&nbsp;)</h3>
+            <div id="lbPlayers"></div>
+          </div>
+          <div class="panel lb-map">
+            <h3>REGIAO DE ORIGEM</h3>
+            <canvas id="mapLobby" width="980" height="470"></canvas>
+            <div id="mapHint">Clica no mapa ou escolhe na lista — a primeira região infetada por ti.</div>
+            <select id="seedSel" style="margin-top:8px"></select>
+            <div id="seedStatus"></div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <h3>O TEU AGENTE</h3>
+            <div class="ag-chips" id="agChips"></div>
+          </div>
+          <div class="panel">
+            <button id="btnReady">AGUARDAR… (ESCOLHE AGENTE E REGIÃO)</button>
+            <button id="hostStart" style="display:none">▶ INICIAR OPERAÇÃO</button>
+            <div id="hostInfo" style="color:var(--dim);font-size:10.5px;margin-top:8px;line-height:1.6"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: partida -->
+  <div class="screen" id="sc-game">
+    <div id="gTop">
+      <div class="gstat"><span class="k">DIA</span><span class="v" id="dayVal">0</span></div>
+      <div class="gstat"><span class="k">DNA</span><span class="v" id="dnaVal">60</span></div>
+      <div class="gstat"><span class="k">INFETADOS (TEUS)</span><span class="v" id="infVal" style="color:#ff808b">0</span></div>
+      <div class="gstat"><span class="k">MORTOS (TEUS)</span><span class="v" id="deadVal">0</span></div>
+      <div class="gstat"><span class="k">HUMANITY</span><span class="v" id="humStage">UNAWARE</span></div>
+      <div class="sp"></div>
+      <div id="rivals" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      <div class="speedbtns" id="speedBox"><span style="font-size:9px;color:var(--dim);align-self:center;letter-spacing:.2em">RELÓGIO</span></div>
+    </div>
+    <div id="gMain">
+      <div id="side">
+        <div class="tabbar">
+          <button data-tab="evo" class="act">GENOMA</button>
+          <button data-tab="reg">REGIÃO</button>
+          <button data-tab="feed">WIRE</button>
+        </div>
+        <div class="tabbody" id="tab-evo"><div class="ncol" id="evoList"></div></div>
+        <div class="tabbody" style="display:none" id="tab-reg"><div id="regionInfo">Clica numa região do mapa…</div></div>
+        <div class="tabbody" style="display:none" id="tab-feed"><div id="feedList" style="font-size:10.5px;color:var(--dim);line-height:1.7"></div></div>
+      </div>
+      <div id="mapwrap">
+        <canvas id="mapG" width="1200" height="640"></canvas>
+        <div id="observeTag" style="display:none">AGENTE ERRADICADO · MODO OBSERVADOR</div>
+        <div id="feedBox"><div id="feed"></div></div>
+        <div id="worldPanels">
+          <div class="wpanel"><div class="wk">CONSCIÊNCIA GLOBAL</div><div class="bar hum"><i id="barAw"></i></div>
+            <div style="font-size:9px;color:var(--dim);margin-top:3px">estádio <b style="color:var(--txt)" id="stageName">UNAWARE</b> · <span id="identTxt">0</span>/179 regiões identificadas</div></div>
+          <div class="wpanel"><div class="wk">VACINA</div><div class="bar vac"><i id="barVac"></i></div>
+            <div style="font-size:9px;color:var(--dim);margin-top:3px" id="vacTxt">pré-ensaios</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: fim -->
+  <div class="screen" id="sc-end">
+    <div class="wrap3">
+      <h2 id="endTitle">FIM DE OPERAÇÃO</h2>
+      <div class="reason" id="endReason"></div>
+      <div id="endRank"></div>
+      <div id="endParts" class="partgrid"></div>
+      <button id="btnAfter">VOLTAR AO INÍCIO</button>
+      <div class="win-note">Score composto SPEC §15.2 — infecção sustentável, presença, objetivos, sobrevivência,
+      eficiência de evolução e achievements. O ranking mantém erradicados com o score acumulado.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+let S = null;              // estado completo (último recebido)
+let META = null;           // meta (nós/agentes) do /pvp/state (não vem nos pushes lite)
+let myKey = null;
+let es = null, esDead = false;
+let curTab = 'evo';
+let hoverR = null, selSeed = null, myReady = false;
+const PALS = ['#a8ff3e','#ff3b4d','#4de3ff','#b48cff','#ffc846','#ff8c3b'];
+
+function toast(m, ok) {
+  const t = $('toast');
+  t.textContent = m; t.style.display = 'block';
+  t.style.borderColor = ok ? 'var(--bio)' : 'var(--red)';
+  t.style.color = ok ? 'var(--bio)' : '#ffb9be';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 4200);
+}
+function actShow(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on')); $(id).classList.add('on'); }
+function codeOf(){ return S && S.pvp ? S.pvp.code : null; }
+async function apiAct(body) {
+  const r = await fetch('/pvp/act', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  return r.json();
+}
+async function doAct(body) {
+  const r = await apiAct(body);
+  if (!r.ok) { toast('✕ ' + (r.error || 'ação recusada')); return false; }
+  return true;
+}
+function fmtM(n){ n = Math.max(0, n); return n >= 1000 ? (n/1000).toFixed(2) + ' B' : (n >= 100 ? n.toFixed(0) : n.toFixed(2)) + 'M'; }
+
+/* ---------------- projeção do mundo (equiretangular) ---------------- */
+function worldBox() {
+  const w = 980, h = 470;
+  return { x: 18, y: 14, w: w - 36, h: h - 28 };
+}
+function proj(lon, lat, w, h) {
+  const b = worldBox();
+  return [b.x + (lon + 180) / 360 * b.w, b.y + (90 - lat) / 180 * b.h];
+}
+function drawWorldBase(cv, clickable) {
+  const ctx = cv.getContext('2d');
+  const w = cv.width, h = cv.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#0a0f12'; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(90,120,110,.14)'; ctx.lineWidth = .5;
+  for (let gx = 0; gx <= 6; gx++) { ctx.beginPath(); ctx.moveTo(gx * w / 6, 0); ctx.lineTo(gx * w / 6, h); ctx.stroke(); }
+  for (let gy = 0; gy <= 3; gy++) { ctx.beginPath(); ctx.moveTo(0, gy * h / 3); ctx.lineTo(w, gy * h / 3); ctx.stroke(); }
+  ctx.fillStyle = '#9fb08f';
+  const B = worldBox();
+  ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  for (const r of META.regions) {
+    const [x, y] = proj(r.lon, r.lat, w, h);
+    const rad = Math.max(1.6, Math.min(6, Math.sqrt(r.pop) / 34));
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, 6.2832); ctx.fill();
+  }
+  return ctx;
+}
+/* pontos de seleção para o mapa do lobby */
+function drawLobbyMap() {
+  const cv = $('mapLobby'), w = cv.width, h = cv.height;
+  const ctx = drawWorldBase(cv);
+  for (const r of META.regions) {
+    const [x, y] = proj(r.lon, r.lat, w, h);
+    const rad = Math.max(1.6, Math.min(6, Math.sqrt(r.pop) / 34));
+    if (r.seedBy) { // a minha escolha
+      ctx.beginPath(); ctx.arc(x, y, rad + 6, 0, 6.2832);
+      ctx.strokeStyle = 'rgba(255,200,70,.9)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 2, 0, 6.2832);
+      ctx.fillStyle = '#ffc846'; ctx.fill();
+    } else if (hoverR === r.id) {
+      ctx.beginPath(); ctx.arc(x, y, rad + 5, 0, 6.2832);
+      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.4; ctx.stroke();
+    }
+  }
+}
+/* mapa em jogo: só a minha infeção + deteção da Humanity */
+function drawGameMap() {
+  const cv = $('mapG'), w = cv.width, h = cv.height;
+  const ctx = drawWorldBase(cv);
+  const regs = (META && META.regions) || [];
+  for (const r of regs) {
+    const [x, y] = proj(r.lon, r.lat, w, h);
+    const rad = Math.max(1.6, Math.min(6, Math.sqrt(r.pop) / 34));
+    const my = S && S.regions.find(q => q.id === r.id);
+    const frac = my && r.pop > 0 ? my.i / r.pop : 0;
+    if (frac > 0) {
+      const glow = Math.min(14, rad + frac * 60);
+      const g = ctx.createRadialGradient(x, y, rad * .4, x, y, glow);
+      g.addColorStop(0, 'rgba(255,45,75,' + Math.min(.95, .25 + frac * 3) + ')');
+      g.addColorStop(1, 'rgba(255,45,75,0)');
+      ctx.beginPath(); ctx.arc(x, y, glow, 0, 6.2832); ctx.fillStyle = g; ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, 6.2832); ctx.fillStyle = '#ff2e3f'; ctx.fill();
+    } else {
+      ctx.fillStyle = '#9fb08f';
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, 6.2832); ctx.fill();
+    }
+    if (my && my.identified) {
+      ctx.beginPath(); ctx.arc(x, y, rad + 3, 0, 6.2832);
+      ctx.strokeStyle = 'rgba(255,200,70,.85)'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+    // região de origem de cada rival (pública no lobby — marco visível)
+    if (META.seeds && META.seeds[r.id]) {
+      ctx.beginPath(); ctx.arc(x, y, rad + 2.2, 0, 6.2832);
+      ctx.strokeStyle = META.seeds[r.id]; ctx.lineWidth = 1; ctx.stroke();
+    }
+    if (hoverR === r.id) {
+      ctx.beginPath(); ctx.arc(x, y, rad + 4.5, 0, 6.2832);
+      ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+  }
+}
+
+/* ---------------- renderers ---------------- */
+function playerName(p) {
+  return p.agent ? (p.icon + ' ' + p.name) : ('▣ ' + p.name + ' (sem agente)');
+}
+function renderLobby() {
+  const pl = S.pvp.players, me = pl.find(p => p.key === myKey) || pl[0];
+  $('lbCode').textContent = S.pvp.code;
+  $('lbCount').textContent = pl.length;
+  $('codeBox').style.display = 'flex';
+  $('roomCode').textContent = S.pvp.code;
+  $('btnQuit').style.display = 'inline-block';
+  const cont = $('lbPlayers'); cont.innerHTML = '';
+  for (const p of pl) {
+    const d = document.createElement('div');
+    d.className = 'pslot' + (p.key === myKey ? ' me' : '');
+    d.innerHTML =
+      '<span class="ic">' + p.icon + '</span>' +
+      '<span class="who"><span class="nm">' + p.name + '</span>' +
+      '<span class="meta">' + (p.seed ? 'origem: <b>' + (META.regionName(p.seed) || p.seed) + '</b>' : 'sem região de origem') + '</span></span>' +
+      (p.host ? '<span class="tag host">HOST</span>' : '') +
+      (p.key === myKey ? '<span class="tag you">TU</span>' : '') +
+      (p.ready ? '<span class="tag rdy">READY</span>' : '<span class="tag">—</span>');
+    cont.appendChild(d);
+  }
+  $('lbHint').textContent = pl.length >= 2
+    ? (S.pvp.host ? 'és o anfitrião — podes iniciar quando todos estiverem READY' : 'aguarda o anfitrião iniciar')
+    : 'partilha o código — precisas de pelo menos 2 operadores';
+
+  // chips de agente
+  const ag = $('agChips'); ag.innerHTML = '';
+  for (const a of META.agents) {
+    const taken = pl.some(q => q.agent === a.id && q.key !== myKey);
+    const mine = (me && me.agent === a.id) || false;
+    const b = document.createElement('button');
+    b.className = 'ag-chip' + (mine ? ' sel' : '') + (taken ? ' taken' : '');
+    b.innerHTML = '<span class="a-ic">' + a.icon + '</span> ' + a.name +
+      '<span class="a-tag">' + a.tag + '</span>';
+    if (!taken && !mine) b.onclick = async () => {
+      const r = await apiAct({ type: 'agent', agent: a.id });
+      if (r.ok) toast('agente: ' + a.icon + ' ' + a.name, true); else toast('✕ ' + r.error);
+    };
+    ag.appendChild(b);
+  }
+  // regiões
+  const sel = $('seedSel'); sel.innerHTML = '';
+  for (const r of META.regions.slice().sort((a, b) => a.name.localeCompare(b.name))) {
+    const o = document.createElement('option');
+    o.value = r.id; o.textContent = r.name + '  (' + (r.pop >= 1000 ? (r.pop / 1000).toFixed(1) + 'B' : r.pop + 'M') + ' hab · ' + r.climate + ')';
+    sel.appendChild(o);
+  }
+  sel.onchange = async () => {
+    if (sel.value) { const r = await apiAct({ type: 'seed', region: sel.value }); if (!r.ok) toast('✕ ' + r.error); }
+  };
+  if (me && me.seed) sel.value = me.seed;
+  $('seedStatus').innerHTML = me && me.seed
+    ? 'origem escolhida: <b>' + META.regionName(me.seed) + '</b> — a primeira infecção parte daqui.'
+    : 'escolhe uma <b>região</b> no mapa ou na lista.';
+  $('seedSel').style.display = 'block';
+
+  // ready + host
+  const rbtn = $('btnReady');
+  if (!me || !me.agent || !me.seed) {
+    rbtn.disabled = true;
+    rbtn.textContent = 'ESCOLHE AGENTE E REGIÃO';
+    rbtn.classList.remove('done');
+  } else {
+    rbtn.disabled = false;
+    rbtn.textContent = myReady ? '✔ READY — clica para desmarcar' : 'READY — PRONTO PARA INICIAR';
+    rbtn.classList.toggle('done', myReady);
+  }
+  rbtn.onclick = async () => { const r = await apiAct({ type: 'ready' }); if (!r.ok) toast('✕ ' + r.error); };
+  const hs = $('hostStart');
+  if (S.pvp.host && S.phase === 'lobby') {
+    hs.style.display = 'block';
+    hs.disabled = pl.length < 2 || pl.some(q => !q.agent || !q.seed || !q.ready);
+    const miss = [];
+    if (pl.length < 2) miss.push('precisas de ≥2 operadores');
+    if (pl.some(q => !q.agent)) miss.push('há operadores sem agente');
+    if (pl.some(q => !q.seed)) miss.push('há operadores sem região');
+    if (pl.some(q => !q.ready)) miss.push('há operadores sem READY');
+    $('hostInfo').textContent = miss.length ? 'pré-requisitos: ' + miss.join(' · ') : 'tudo pronto — inicia quando quiseres.';
+    hs.onclick = async () => {
+      const r = await apiAct({ type: 'start' });
+      if (!r.ok) toast('✕ ' + r.error);
+    };
+  } else {
+    hs.style.display = 'none'; $('hostInfo').textContent = '';
+  }
+  drawLobbyMap();
+}
+function renderTop() {
+  $('topHud').innerHTML = '';
+}
+function renderGame() {
+  $('codeBox').style.display = 'flex';
+  $('roomCode').textContent = S.pvp.code;
+  $('btnQuit').style.display = 'inline-block';
+  $('dayVal').textContent = S.day;
+  $('dnaVal').textContent = S.dna;
+  $('infVal').textContent = fmtM(S.world.infected);
+  $('deadVal').textContent = fmtM(S.world.dead);
+  $('humStage').textContent = S.humanity.stageName || ('STAGE ' + S.humanity.stage);
+  $('stageName').textContent = S.humanity.stageName || '';
+  $('identTxt').textContent = S.humanity.identified;
+  $('barAw').style.width = Math.min(100, S.humanity.awareness) + '%';
+  $('barVac').style.width = Math.min(100, S.humanity.vaccine) + '%';
+  $('vacTxt').textContent = S.humanity.vaccine >= 100 ? 'distribuição em massa' : (S.humanity.vaccine >= 50 ? 'ensaios avançados' : (S.humanity.vaccine >= 25 ? 'ensaios clínicos' : 'pré-ensaios'));
+  // rivals
+  const rv = $('rivals'); rv.innerHTML = '';
+  for (const p of S.pvp.players) {
+    const d = document.createElement('div');
+    d.className = 'rival' + (p.key === myKey ? ' me' : '') + (p.alive === false ? ' dead' : '');
+    d.innerHTML = '<span class="ic">' + p.icon + '</span><span class="nm">' + p.name + '</span>';
+    rv.appendChild(d);
+  }
+  // relógio — host controla
+  const sb = $('speedBox');
+  sb.querySelectorAll('.speedbtn').forEach(x => x.remove());
+  for (const v of [0, 1, 2, 4, 8]) {
+    const b = document.createElement('button');
+    b.className = 'speedbtn' + (S.speed === v ? ' act' : '');
+    b.textContent = v === 0 ? '⏸' : '×' + v;
+    b.disabled = !S.pvp.host;
+    b.title = v === 0 ? 'pausar' : 'velocidade ×' + v;
+    b.onclick = async () => { const r = await apiAct({ type: 'speed', value: v }); if (!r.ok) toast('✕ ' + r.error); };
+    sb.appendChild(b);
+  }
+  // observador?
+  $('observeTag').style.display = S.alive === false ? 'block' : 'none';
+  renderEvo();
+  renderFeed();
+  if (curTab === 'reg') renderRegionTab();
+  drawGameMap();
+}
+function tierOf(n, nodes) {
+  if (!n.req || !n.req.length) return 0;
+  let m = 0;
+  for (const r of n.req) {
+    const rn = nodes.find(x => x.id === r);
+    if (rn) m = Math.max(m, 1 + tierOf(rn, nodes));
+  }
+  return m;
+}
+function effTxt(e) {
+  if (!e || !e.length) return '';
+  return e.map(x => {
+    if (x.k === 'incub') return 'incubação';
+    if (x.k.startsWith('climate.')) return x.k.split('.')[1] + (x.mul !== undefined ? ' ×' + x.mul : '');
+    const v = x.mul !== undefined ? '×' + x.mul : (x.add > 0 ? '+' + x.add : '' + x.add);
+    return x.k + ' ' + v;
+  }).join(' · ');
+}
+function renderEvo() {
+  const nodes = (META && META.agentNodes) || [];
+  const owned = new Set(S.owned || []);
+  const cont = $('evoList'); cont.innerHTML = '';
+  const byTier = {};
+  for (const n of nodes) (byTier[tierOf(n, nodes)] = byTier[tierOf(n, nodes)] || []).push(n);
+  for (const t of Object.keys(byTier).map(Number).sort((a, b) => a - b)) {
+    const head = document.createElement('div');
+    head.style.cssText = 'color:var(--dim);font-size:9.5px;letter-spacing:.25em;margin:8px 0 3px';
+    head.textContent = 'TIER ' + (t + 1);
+    cont.appendChild(head);
+    for (const n of byTier[t]) {
+      const d = document.createElement('div');
+      const cost = Math.round(n.cost * (S.player.costMod || 1));
+      const has = owned.has(n.id);
+      const can = !has && n.req.every(r => owned.has(r)) && S.dna >= cost && S.alive !== false;
+      d.className = 'node' + (has ? ' owned' : can ? ' buyable' : ' lock');
+      d.innerHTML = '<div class="n-top"><b>' + n.name + '</b><span class="n-dna">' + (has ? '✔' : cost + ' DNA') + '</span></div>' +
+        (n.desc ? '<div class="n-desc">' + n.desc + '</div>' : '') +
+        '<div class="n-eff">' + effTxt(n.effects) + '</div>';
+      if (can) d.onclick = async () => {
+        const r = await apiAct({ type: 'evolve', node: n.id });
+        if (!r.ok) toast('✕ ' + r.error); else toast('evoluiu: ' + n.name, true);
+      };
+      cont.appendChild(d);
+    }
+  }
+}
+function renderFeed() {
+  const feed = $('feed');
+  const news = (S.news || []).slice(-24);
+  feed.innerHTML = news.map(n =>
+    '<div class="' + (String(n.msg || '').includes('EXTINTA') || String(n.msg || '').startsWith('PARTIDA') ? 'alert' : '') + '">DIA ' + n.day + ' · ' + n.msg + '</div>').join('');
+  if (curTab === 'feed') {
+    $('feedList').innerHTML = news.slice().reverse().map(n => 'DIA ' + n.day + ' · ' + n.msg).join('<br>') || '(sem tráfego ainda)';
+  }
+}
+function renderRegionTab() {
+  const el = $('regionInfo');
+  if (!hoverR) { el.textContent = 'Clica numa região do mapa…'; return; }
+  const r = S.regions.find(q => q.id === hoverR);
+  const m = META.regions.find(q => q.id === hoverR);
+  if (!r || !m) return;
+  el.innerHTML = '<b>' + m.name + '</b>\npop ' + m.pop + 'M · ' + m.climate + ' · dens ' + m.density +
+    '\ninfetados (teus): <b>' + fmtM(r.i) + '</b>\nsuscetíveis: ' + fmtM(r.s) +
+    '\ndeteção: ' + Math.min(100, r.detection).toFixed(0) + '/100' +
+    (r.identified ? '\n<b style="color:var(--amber)">IDENTIFICADA pela Humanity</b>' : '') +
+    '\n<hr style="border-color:var(--line2);margin:6px 0">' +
+    '\nclima ' + m.climate + ' · healthcare ' + m.healthcare + ' · science ' + m.science +
+    (m.airport ? ' · aeroporto' : '') + (m.port ? ' · porto' : '');
+}
+
+function renderEnd() {
+  $('codeBox').style.display = 'none';
+  $('btnQuit').style.display = 'inline-block';
+  const res = S.result || {};
+  $('endReason').textContent = 'DIA ' + (res.day || S.day) + ' · ' + (res.reason || 'fim');
+  const rank = $('endRank'); rank.innerHTML = '';
+  const players = S.pvp.players;
+  const order = (res.ranking || []).map(rk => {
+    const p = players.find(p => p.key === rk.key);
+    return Object.assign({}, rk, { player: p });
+  });
+  order.forEach((rk, i) => {
+    const d = document.createElement('div');
+    d.className = 'rankrow' + (i === 0 ? ' win' : '');
+    d.innerHTML =
+      '<span class="pos">' + (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : String(i + 1).padStart(2, '0')) + '</span>' +
+      '<span class="ic">' + (rk.player ? rk.player.icon : '▣') + '</span>' +
+      '<span class="who"><span class="nm">' + (rk.player ? rk.player.name : rk.agent) + '</span>' +
+      '<span class="det">' + (rk.alive ? 'ativo no terreno' : 'erradicado') + ' · contágio ' + rk.cumPct + '% · mortos ' + rk.deadPct + '% · infectados ' + (rk.cumPct || 0) + '%</span></span>' +
+      '<span class="pts">' + rk.score + '<small>/1000 PTS</small></span>';
+    rank.appendChild(d);
+  });
+  // partes do vencedor
+  const w = order[0];
+  const parts = w ? w.parts : null;
+  $('endParts').innerHTML = '';
+  if (parts) {
+    const defs = [['infecao','INFECÇÃO SUSTENTÁVEL'],['presenca','PRESENÇA / FIRST-INFECTION'],['objetivos','OBJETIVOS'],['sobrevivencia','SOBREVIVÊNCIA'],['eficiencia','EFICIÊNCIA'],['achievements','ACHIEVEMENTS']];
+    for (const [k, lbl] of defs) {
+      const p = document.createElement('div');
+      p.className = 'part'; p.innerHTML = lbl + '<b>' + (parts[k] || 0) + '</b>';
+      $('endParts').appendChild(p);
+    }
+  }
+}
+function render() {
+  if (!S) return;
+  myKey = S.pvp.you;
+  if (S.phase === 'lobby') {
+    myReady = (S.pvp.players.find(p => p.key === myKey) || {}).ready === true;
+    actShow('sc-lobby');
+    renderLobby();
+  } else if (S.phase === 'running') {
+    actShow('sc-game');
+    renderGame();
+  } else if (S.phase === 'ended') {
+    actShow('sc-end');
+    renderEnd();
+  } else {
+    actShow('sc-home');
+  }
+}
+
+/* ---------------- eventos / rede ---------------- */
+async function fetchState() {
+  try {
+    const r = await fetch('/pvp/state');
+    const d = await r.json();
+    if (d.room === null) { S = null; META = null; showHome(''); return; }
+    applyState(d.state, true);
+  } catch (_) { /* servidor a reiniciar? */ }
+}
+function connectSSE() {
+  if (esDead || !S || !S.pvp) return;
+  if (es) try { es.close(); } catch (_) {}
+  es = new EventSource('/pvp/events?c=' + S.pvp.code);
+  es.onmessage = ev => {
+    try { const d = JSON.parse(ev.data); if (d.state) applyState(d.state, false); }
+    catch (_) {}
+  };
+  es.onerror = () => {
+    try { es.close(); } catch (_) {}
+    es = null;
+    setTimeout(() => {
+      if (!esDead && S && S.pvp && S.pvp.code) {
+        fetchState().then(() => connectSSE());
+      }
+    }, 2500);
+  };
+}
+function applyState(st, full) {
+  if (full) {
+    // estado completo com meta
+    const oldCode = S && S.pvp && S.pvp.code;
+    S = st;
+    META = {
+      agents: st.meta.agents || [],
+      nodes: st.meta.nodes || [],
+      edges: st.meta.edges || [],
+      regions: (st.regions || []).map(r => ({ id: r.id, name: r.name, lon: r.lon, lat: r.lat, pop: r.pop, climate: r.climate, density: r.density, healthcare: r.healthcare, science: r.science })),
+      agentNodes: (st.meta.nodes || []).filter(n => !n.agentOnly || n.agentOnly === st.agent),
+      regionName: id => { const m = (st.regions || []).find(r => r.id === id); return m ? m.name : id; },
+      seeds: (st.pvp.players || []).reduce((o, p) => { if (p.seed) o[p.seed] = PALS[(st.pvp.players.findIndex(q => q.key === p.key) + 1) % PALS.length]; return o; }, {}),
+    };
+    // opções para escolher agente filtradas
+    const newCode = S.pvp.code;
+    if (oldCode && oldCode !== newCode) { if (es) { try { es.close(); } catch (_) {} es = null; } }
+    if (st.phase !== 'lobby') {
+      // meta de nós do meu agente muda quando o agente muda (já escolhido em lobby — seguro)
+    }
+    render();
+    connectSSE();
+  } else {
+    // push lite: sem meta — preserva a meta local
+    const keep = META;
+    S = st;
+    META = keep;
+    render();
+  }
+}
+function showHome(msg) {
+  if (es) { try { es.close(); } catch (_) {} es = null; }
+  S = null; META = null; esDead = false;
+  $('codeBox').style.display = 'none'; $('btnQuit').style.display = 'none';
+  $('topHud').innerHTML = '';
+  actShow('sc-home');
+  if (msg) toast(msg, true);
+}
+function byeRoom(back) {
+  fetch('/pvp/leave', { method: 'POST' }).then(r => r.json()).then(() => {
+    showHome(back ? 'saíste da sala' : '');
+  });
+}
+
+/* ---------------- interações globais ---------------- */
+$('btnCreate').onclick = async () => {
+  $('btnCreate').textContent = 'CRIANDO…'; $('btnCreate').disabled = true;
+  const r = await fetch('/pvp/create', { method: 'POST' });
+  const d = await r.json();
+  $('btnCreate').textContent = '＋ CRIAR SALA'; $('btnCreate').disabled = false;
+  if (!d.ok) { toast('✕ ' + d.error); return; }
+  applyState(d.state, true);
+};
+$('btnJoin').onclick = joinByCode;
+$('joinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinByCode(); });
+async function joinByCode() {
+  const code = $('joinCode').value.trim().toUpperCase();
+  if (!/^[A-Z2-9]{6}$/.test(code)) { toast('✕ código de 6 caracteres (sem I/L/O/0/1)'); return; }
+  const r = await fetch('/pvp/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+  const d = await r.json();
+  if (!d.ok) { toast('✕ ' + d.error); return; }
+  $('joinCode').value = '';
+  applyState(d.state, true);
+}
+$('btnQuit').onclick = () => byeRoom(true);
+$('btnLeaveLobby').onclick = () => byeRoom(true);
+$('btnAfter').onclick = () => byeRoom(false);
+$('roomCode').onclick = () => {
+  const c = $('roomCode').textContent;
+  navigator.clipboard && navigator.clipboard.writeText(c).then(() => toast('código copiado: ' + c, true)).catch(() => {});
+};
+document.querySelectorAll('#side .tabbar button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#side .tabbar button').forEach(x => x.classList.remove('act'));
+    b.classList.add('act');
+    curTab = b.dataset.tab;
+    ['evo', 'reg', 'feed'].forEach(t => $('tab-' + t).style.display = t === curTab ? '' : 'none');
+    if (curTab === 'reg') renderRegionTab();
+    if (curTab === 'feed') renderFeed();
+  };
+});
+function attachMapEvents(cv, mode) {
+  const get = (e) => {
+    const b = cv.getBoundingClientRect();
+    const x = (e.clientX - b.left) * cv.width / b.width;
+    const y = (e.clientY - b.top) * cv.height / b.height;
+    let best = null, bd = 1e9;
+    for (const r of META.regions) {
+      const [px, py] = proj(r.lon, r.lat, cv.width, cv.height);
+      const d = Math.hypot(px - x, py - y);
+      if (d < bd) { bd = d; best = r; }
+    }
+    return bd < 26 ? best : null;
+  };
+  cv.addEventListener('mousemove', e => {
+    const r = get(e);
+    hoverR = r ? r.id : null;
+    if (mode === 'lobby') drawLobbyMap();
+    else { drawGameMap(); if (curTab === 'reg') renderRegionTab(); }
+  });
+  cv.addEventListener('mouseleave', () => { hoverR = null; if (mode === 'lobby') drawLobbyMap(); else drawGameMap(); });
+  cv.addEventListener('click', async e => {
+    const r = get(e);
+    if (!r) return;
+    if (mode === 'lobby') {
+      const res = await apiAct({ type: 'seed', region: r.id });
+      if (!res.ok) toast('✕ ' + res.error);
+    } else if (curTab === 'reg') {
+      // selecionar região para ver detalhe (mantém hoverR)
+    }
+  });
+}
+attachMapEvents($('mapLobby'), 'lobby');
+attachMapEvents($('mapG'), 'game');
+
+/* ---------------- boot ---------------- */
+(async function boot() {
+  const d = await (await fetch('/pvp/state')).json();
+  if (d.room === null) { showHome(''); }
+  else applyState(d.state, true);
+})();
+</script>
+</body>
+</html>

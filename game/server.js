@@ -8,9 +8,10 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { REGIONS, NODES, BUILDS, EVENTS, AGENTS } = require('./data.js');
+const { REGIONS, NODES, BUILDS, EVENTS, AGENTS, EDGES } = require('./data.js');
 const dev = require('./lib/dev.js');
 const bot = require('./lib/bot.cjs');  // política única de compra (A4)
+const pvp = require('./lib/pvp.cjs');  // Phase 3 — modo VIRUS multi-operador (SPEC §15.2)
 
 const PORT = process.env.PORT || 3000;
 const TICK_MS = 2000;          // 1 tick = 1 in-game day (calibration parameter)
@@ -59,38 +60,6 @@ const STAGE_NAMES = ['UNAWARE','SUSPICION','INVESTIGATION','IDENTIFICATION','CON
 const STAGE_THRESH = [0, 8, 20, 35, 52, 68, 84, 100];
 
 const WORLD_POP = REGIONS.reduce((s, r) => s + r.pop, 0);
-
-// ---------- graph (distâncias reais, haversine) ----------
-function havKm(a, b) {
-  const R = 6371, toR = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * toR, dLon = (b.lon - a.lon) * toR;
-  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
-const EDGES = [];
-(function buildGraph() {
-  for (let i = 0; i < REGIONS.length; i++) {
-    for (let j = i + 1; j < REGIONS.length; j++) {
-      const a = REGIONS[i], b = REGIONS[j], d = havKm(a, b);
-      if (d < 1300) EDGES.push({ a: a.id, b: b.id, type: 'land', cap: 0.9 * (0.5 + (a.mobility + b.mobility) / 2) });
-      else if (a.port && b.port && d < 9000) EDGES.push({ a: a.id, b: b.id, type: 'sea', cap: 0.6 });
-      else if (a.airport && b.airport && d < 13000) EDGES.push({ a: a.id, b: b.id, type: 'air', cap: 0.85 });
-    }
-  }
-  // connectivity guarantee
-  const adj = {};
-  REGIONS.forEach(r => adj[r.id] = []);
-  EDGES.forEach(e => { adj[e.a].push(e.b); adj[e.b].push(e.a); });
-  const seen = new Set([REGIONS[0].id]); const q = [REGIONS[0].id];
-  while (q.length) { const c = q.shift(); for (const n of adj[c]) if (!seen.has(n)) { seen.add(n); q.push(n); } }
-  for (const r of REGIONS) if (!seen.has(r.id)) {
-    let best = null, bd = 1e9;
-    for (const o of REGIONS) if (seen.has(o.id)) { const d = havKm(r, o); if (d < bd) { bd = d; best = o; } }
-    EDGES.push({ a: r.id, b: best.id, type: 'air', cap: 0.7 });
-    adj[r.id].push(best.id); adj[best.id].push(r.id); seen.add(r.id);
-    console.log(`[graph] added emergency air route ${r.id} -> ${best.id}`);
-  }
-})();
 
 // ---------- game state ----------
 let G = null;
@@ -664,6 +633,11 @@ if (process.argv.includes('--simtest') && require.main === module) { simTest(); 
 // O motor continua a usar o global G (scratch); cada handler liga G ao jogo da sessão.
 const crypto = require('crypto');
 const SESS = new Map();                 // sid -> { id, agent, game, lastSeen, sse:Set, acts:[] }
+const PVP_SSE = new Map();              // code -> Map(key -> {res, ver}) — PvP: ligações SSE por sala
+const pvpLiteState = st => {            // SSE lite: meta (nós+grafo) carrega-se uma vez no /pvp/state
+  if (st && st.meta) { const c = JSON.parse(JSON.stringify(st)); c.meta = { pvp: true, lite: true }; return c; }
+  return st;
+};
 const SESS_MAX = 96;
 const SAVE_FILE = process.env.SAVE_FILE || path.join(os.tmpdir(), 'pevo-world-save.json');
 let _lastSave = 0;
@@ -773,6 +747,10 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
   }
+  if (req.method === 'GET' && (url.pathname === '/pvp' || url.pathname === '/pvp/')) {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end(fs.readFileSync(path.join(__dirname, 'public', 'pvp.html')));
+  }
 
   const s = ensureSession(url, req, res);
   if (req.method === 'GET' && url.pathname === '/state') {
@@ -825,6 +803,106 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
+  // ---------- Phase 3 — modo VIRUS (PvP): salas com código, motor lib/pvp.cjs ----------
+
+  const readBody = (cb) => {
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 8192) req.destroy(); });
+    req.on('end', () => { try { cb(JSON.parse(body || '{}')); } catch (_) { cb({}); } });
+  };
+  const pvpErr = msg => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, error: msg })); };
+  const pvpOk = obj => { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify({ ok: true, ...obj })); };
+  const roomOfSession = sid => (s.pvpCode && pvp.api.byCode(s.pvpCode)) || null;
+
+  if (req.method === 'GET' && url.pathname === '/pvp/state') {
+    const c = (url.searchParams.get('c') || s.pvpCode || '').toUpperCase();
+    const room = c ? pvp.api.byCode(c) : null;
+    if (!room) return res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }) && res.end(JSON.stringify({ room: null, code: s.pvpCode || null }));
+    if (!room.players.has(s.id)) return pvpErr('não estás nesta sala');
+    return pvpOk({ code: room.code, state: pvp.stateFor(room, s.id) });
+  }
+  if (req.method === 'GET' && url.pathname === '/pvp/events') {
+    const c = (url.searchParams.get('c') || s.pvpCode || '').toUpperCase();
+    const room = c ? pvp.api.byCode(c) : null;
+    if (!room || !room.players.has(s.id)) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'no room' })); }
+    if (!PVP_SSE.has(room.code)) PVP_SSE.set(room.code, new Map());
+    PVP_SSE.get(room.code).set(s.id, { res, ver: -1 });
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    const hdr = { code: room.code, state: pvpLiteState(pvp.stateFor(room, s.id)) };
+    res.write(`data: ${JSON.stringify(hdr)}\n\n`);
+    req.on('close', () => {
+      const m = PVP_SSE.get(room.code);
+      if (m) { m.delete(s.id); if (!m.size) PVP_SSE.delete(room.code); }
+    });
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/pvp/create') {
+    const now = Date.now();
+    s.acts = s.acts.filter(t => now - t < 10000);
+    if (s.acts.length > 60) return pvpErr('rate limited');
+    s.acts.push(now);
+    return readBody(() => {
+      const cur = roomOfSession(s.id);
+      if (cur) {
+        if (cur.phase !== 'lobby') { s.pvpCode = null; }
+        else return pvpOk({ code: cur.code, state: pvp.stateFor(cur, s.id) });
+      }
+      if (pvp.api.count() >= 64) return pvpErr('sem capacidade agora (64 salas ativas) — tenta mais tarde');
+      const room = pvp.api.create(s.id);
+      s.pvpCode = room.code;
+      return pvpOk({ code: room.code, state: pvp.stateFor(room, s.id) });
+    });
+  }
+  if (req.method === 'POST' && url.pathname === '/pvp/join') {
+    const now = Date.now();
+    s.acts = s.acts.filter(t => now - t < 10000);
+    if (s.acts.length > 60) return pvpErr('rate limited');
+    s.acts.push(now);
+    return readBody(b => {
+      const c = String(b.code || '').toUpperCase().trim();
+      if (!/^[A-Z2-9]{6}$/.test(c)) return pvpErr('código inválido (6 caracteres)');
+      const room = pvp.api.byCode(c);
+      if (!room) return pvpErr('sala não encontrada');
+      if (room.phase !== 'lobby') return pvpErr('sala já começou');
+      if (s.pvpCode && s.pvpCode !== c) {
+        const old = pvp.api.byCode(s.pvpCode);
+        if (old && old.phase === 'lobby') pvp.api.leave(old, s.id);
+        s.pvpCode = null;
+      }
+      const r = pvp.api.join(room, s.id);
+      if (r.error) return pvpErr(r.error);
+      s.pvpCode = c;
+      return pvpOk({ code: c, state: pvp.stateFor(room, s.id) });
+    });
+  }
+  if (req.method === 'POST' && url.pathname === '/pvp/leave') {
+    const now = Date.now();
+    s.acts = s.acts.filter(t => now - t < 10000);
+    if (s.acts.length > 60) return pvpErr('rate limited');
+    s.acts.push(now);
+    const room = roomOfSession(s.id);
+    if (room) pvp.api.leave(room, s.id);
+    s.pvpCode = null;
+    return pvpOk({});
+  }
+  if (req.method === 'POST' && url.pathname === '/pvp/act') {
+    const now = Date.now();
+    s.acts = s.acts.filter(t => now - t < 10000);
+    if (s.acts.length > 60) return pvpErr('rate limited');
+    s.acts.push(now);
+    return readBody(b => {
+      const room = roomOfSession(s.id);
+      if (!room) return pvpErr('não estás numa sala');
+      const out = pvp.api.act(room, s.id, b);
+      if (out.error) return pvpErr(out.error);
+      if (room.phase === 'ended' && b.type !== 'leave') {
+        // depois do fim a sala mantém-se só para o ranking; sair limpa a sessão
+        s.pvpCode = null;
+        return pvpOk({ ...out, ended: true });
+      }
+      return pvpOk(out);
+    });
+  }
   res.writeHead(404); res.end('not found');
 });
 
@@ -850,6 +928,30 @@ if (require.main === module) {
     maybeSave(false);
   }, 500);
   setInterval(() => { eachClient(res => { try { res.write(': hb\n\n'); } catch (_) {} }); }, 15000);
+
+  // Phase 3 — PvP: avança as salas VIRUS e faz push SSE por (sala, jogador) quando muda
+  let lastSweep = Date.now();
+  setInterval(() => {
+    pvp.api.advance(500);
+    const now = Date.now();
+    if (now - lastSweep > 5 * 60e3) { pvp.sweepAbandoned(now); lastSweep = now; }
+    for (const [code, m] of PVP_SSE) {
+      const room = pvp.ROOMS.get(code);
+      if (!room) {
+        for (const e of m.values()) { try { e.res.end(); } catch (_) {} }
+        PVP_SSE.delete(code);
+        continue;
+      }
+      for (const [key, e] of m) {
+        try {
+          if (!e.res.writableEnded && e.ver !== room.sseVer) {
+            e.ver = room.sseVer;
+            e.res.write(`data: ${JSON.stringify({ code: room.code, state: pvpLiteState(pvp.stateFor(room, key)) })}\n\n`);
+          }
+        } catch (e) { console.error('[pvp-sse] drop', code, key, e && e.message); m.delete(key); }
+      }
+    }
+  }, 500);
 
   // A1 — crash: snapshot imediato antes de morrer (Render reinicia e restaura)
   process.on('uncaughtException', err => {

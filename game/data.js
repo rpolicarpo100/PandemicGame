@@ -337,4 +337,37 @@ const AGENTS = [
     desc:'Letalidade elevada (+30%) à custa de deteção muito mais fácil.',
     effects: [{k:'leth',mul:1.30},{k:'detectMod',mul:1.15}] },
 ];
-module.exports = { REGIONS, NODES, BUILDS, EVENTS, AGENTS };
+
+// ---------- graph (distâncias reais, haversine) — fonte única (PvE + PvP) ----------
+function havKm(a, b) {
+  const R = 6371, toR = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toR, dLon = (b.lon - a.lon) * toR;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+function buildEdges() {
+  const E = [];
+  for (let i = 0; i < REGIONS.length; i++) {
+    for (let j = i + 1; j < REGIONS.length; j++) {
+      const a = REGIONS[i], b = REGIONS[j], dist = havKm(a, b);
+      if (dist < 1300) E.push({ a: a.id, b: b.id, type: 'land', cap: 0.9 * (0.5 + (a.mobility + b.mobility) / 2) });
+      else if (a.port && b.port && dist < 9000) E.push({ a: a.id, b: b.id, type: 'sea', cap: 0.6 });
+      else if (a.airport && b.airport && dist < 13000) E.push({ a: a.id, b: b.id, type: 'air', cap: 0.85 });
+    }
+  }
+  const adj = {};
+  REGIONS.forEach(r => adj[r.id] = []);
+  E.forEach(e => { adj[e.a].push(e.b); adj[e.b].push(e.a); });
+  const seen = new Set([REGIONS[0].id]); const q = [REGIONS[0].id];
+  while (q.length) { const c = q.shift(); for (const n of adj[c]) if (!seen.has(n)) { seen.add(n); q.push(n); } }
+  for (const r of REGIONS) if (!seen.has(r.id)) {
+    let best = null, bd = 1e9;
+    for (const o of REGIONS) if (seen.has(o.id)) { const dist = havKm(r, o); if (dist < bd) { bd = dist; best = o; } }
+    E.push({ a: r.id, b: best.id, type: 'air', cap: 0.7 });
+    adj[r.id].push(best.id); adj[best.id].push(r.id); seen.add(r.id);
+  }
+  return E;
+}
+const EDGES = buildEdges();
+
+module.exports = { REGIONS, NODES, BUILDS, EVENTS, AGENTS, EDGES };
