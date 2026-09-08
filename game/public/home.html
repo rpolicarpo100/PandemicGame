@@ -128,7 +128,7 @@ footer .dc{color:var(--dim);font-size:10px;letter-spacing:.3em;margin-top:16px;t
 <div class="wrap">
   <div class="topbar">
     <div class="doc">DOSSIER <b>PE-001</b> // CLASSIFICAÇÃO: <b>NÍVEL 4</b> // DISTRIBUIÇÃO: RESTRITA</div>
-    <nav class="nav"><a href="#modos">Modos</a><a href="#economia">Economia</a><a href="#protocolo">Protocolo</a><a href="/play">Simulação</a><a href="/dev" style="color:var(--amber)">DEV</a></nav>
+    <nav class="nav"><a href="#modos">Modos</a><a href="#economia">Economia</a><a href="#roadmap">Roadmap</a><a href="/play">Simulação</a><a href="/dev" style="color:var(--amber)">DEV</a></nav>
   </div>
 
   <div class="hero">
@@ -180,10 +180,10 @@ footer .dc{color:var(--dim);font-size:10px;letter-spacing:.3em;margin-top:16px;t
       <div class="row">
         <span class="idx">01</span>
         <span class="nm">Pandemia</span>
-        <span class="ds">PvE · operador vs Humanity AI. Três cenários com regras próprias de deteção, relógio e recursos.
-          <span class="chips"><span class="chip bio">Silent Dawn</span><span class="chip bio">Global Rush</span><span class="chip bio">Iron World</span></span>
+        <span class="ds">PvE · operador vs Humanity AI · mundo próprio por sessão. Seis agentes, nove árvores genéticas e três cenários com regras próprias de deteção, relógio e recursos.
+          <span class="chips"><span class="chip bio">6 agentes</span><span class="chip bio">Silent Dawn</span><span class="chip bio">Global Rush</span><span class="chip bio">Iron World</span></span>
         </span>
-        <span class="stx"><span class="stamp st op">Operacional</span></span>
+        <span class="stx"><span class="stamp st op">Operacional · v1.3</span></span>
       </div>
       <div class="row">
         <span class="idx">02</span>
@@ -245,11 +245,59 @@ footer .dc{color:var(--dim);font-size:10px;letter-spacing:.3em;margin-top:16px;t
   </section>
 </div>
 
+<div class="wrap" id="roadmap">
+  <section>
+    <div class="sec-h"><span class="no">SEC.05</span><span class="tt">Roadmap de operações</span></div>
+    <div class="ledger">
+      <div class="row">
+        <span class="idx">PH 1</span>
+        <span class="nm">Core game</span>
+        <span class="ds">Vertical slice jogável: 179 regiões reais, Humanity AI adaptativa, 53 nós / 9 árvores, 6 agentes, sessões por cookie, snapshot crash-safe, QA automático (101/101 + CI).
+          <span class="chips"><span class="chip bio">sessões</span><span class="chip bio">crash-safe</span><span class="chip bio">CI ativo</span></span>
+        </span>
+        <span class="stx"><span class="stamp st op">Entregue</span></span>
+      </div>
+      <div class="row">
+        <span class="idx">PH 2</span>
+        <span class="nm">PvE</span>
+        <span class="ds">Cenários Silent Dawn / Global Rush / Iron World (barra 90% + colapso aos 65%) jogáveis e calibrados por bot. Falta a campanha PvE por capítulos.
+          <span class="chips"><span class="chip bio">3 cenários</span><span class="chip">campanha por capítulos</span></span>
+        </span>
+        <span class="stx"><span class="stamp st qr">Em curso</span></span>
+      </div>
+      <div class="row">
+        <span class="idx">PH 3–6</span>
+        <span class="nm">Competição</span>
+        <span class="ds">Virus (PvP 2–6 agentes), Embate (1v1 assimétrico), Advanced Agents, Ranked (MMR + seasons). Design fechado na SPEC v1.2.
+          <span class="chips"><span class="chip">Phase 3</span><span class="chip">Phase 4</span><span class="chip">Phase 5</span><span class="chip">Phase 6</span></span>
+        </span>
+        <span class="stx"><span class="stamp st ar">Futuro</span></span>
+      </div>
+      <div class="row">
+        <span class="idx">PH 7</span>
+        <span class="nm">Solana</span>
+        <span class="ds">Wallet Phantom real na página (leitura on-chain). Contrato $PEVO não emitido — devnet primeiro, gate jurídica antes do mainnet.
+          <span class="chips"><span class="chip bio">wallet real</span><span class="chip">$PEVO devnet</span></span>
+        </span>
+        <span class="stx"><span class="stamp st qr">Em curso</span></span>
+      </div>
+      <div class="row">
+        <span class="idx">PH 8–12</span>
+        <span class="nm">Web3</span>
+        <span class="ds">Marketplace, Referral (1 nível), Tournaments, Guilds, Living Assets. Sem data — dependem da validação do gameplay.
+          <span class="chips"><span class="chip">8</span><span class="chip">9</span><span class="chip">10</span><span class="chip">11</span><span class="chip">12</span></span>
+        </span>
+        <span class="stx"><span class="stamp st ar">Futuro</span></span>
+      </div>
+    </div>
+  </section>
+</div>
+
 <footer>
   <div class="wrap">
     <div class="tg">Evolve. Adapt. <em>Dominate.</em></div>
     <div class="tg" style="font-size:clamp(14px,2vw,20px);color:var(--dim);margin-top:8px">Own your legacy.</div>
-    <div class="dc">GAME FIRST → COMPETITION → RETENTION → WEB3 → ECONOMY &nbsp;//&nbsp; REV 1.2 · 2026-09-07 · FIM DO DOCUMENTO</div>
+    <div class="dc">GAME FIRST → COMPETITION → RETENTION → WEB3 → ECONOMY &nbsp;//&nbsp; REV 1.3 · 2026-09-08 · FIM DO DOCUMENTO</div>
   </div>
 </footer>
 <div class="hazard"></div>

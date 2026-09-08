@@ -9,11 +9,16 @@
 | `REVIEW.md` | Revisão crítica da v1.0: 6 contradições, ~20 lacunas, 5 riscos legais, 12 perguntas | ✅ Concluída |
 | `ECONOMY-v1.0.md` | **Economia v1.0** — decisões E1–E4 fechadas (hold gate 10k, stake PvE/PvP, 5 wallets, nomes animados) | ✅ Ativa |
 | `ECONOMY-v0.1.md` | Rascunho inicial da economia | 📁 Arquivo |
+| `ROADMAP.md` | **Roadmap consolidado** — fases SPEC 0–12 × estado real (código + operação), próximos passos | ✅ Ativo |
 | `../qa/` | **QA headless keyless** (fora desta pasta): Playwright + Chromium, screenshots, erros de consola, fluxo jogado — ver `../qa/README.md` | ✅ Ativo |
 
-## Estado atual (2026-09-07)
+## Estado atual (2026-09-08)
 
-- **Economia:** decisões E1–E4 fechadas; modelação fina adiada (ver §59 da SPEC v1.2).
-- **Vertical slice Phase 1: jogável** em `game/` — PvE com VIRUS, 36 regiões fictícias, 37 nós de evolução, Humanity AI adaptativa, servidor autoritativo. Ver `game/README.md`.
-- **QA keyless ativo:** o projeto tem browser headless próprio (`/home/user/qa`) — cada alteração de UI é verificada por screenshot + consola antes de ser dada como concluída. Já apanhou 2 bugs visuais invisíveis por curl (mapa-múndi silenciado, labels sobrepostos).
-- **Próximo passo:** validar fun com 10–20 jogadores reais; depois Phase 2 (PvE campaign) ou calibração de parâmetros.
+- **Vertical slice em produção e jogável**: 179 regiões reais, 6 agentes, 9 árvores (53 nós),
+  3 cenários PvE, Humanity AI adaptativa, score + top-10 local + medalhas, dev console
+  autenticado (`DEV_ACCESS_KEY` fixa ativa), CI verde a cada push. Ver `game/README.md`,
+  `ROADMAP.md` e `RECOMENDACOES-CRITICAS.md`.
+- **Operação**: deploy automático na Render; falta apenas o disco persistente (1 clique no
+  dashboard) para telemetria/mundos sobreviverem a deploys — ver `DEPLOY-RENDER.md` (local, com chaves).
+- **Próximo passo:** playtest aberto (gate formal da Phase 1) com win rate humano por cenário
+  no `/dev`; depois campanha PvE (Phase 2).
