@@ -7,8 +7,10 @@ Atualizado: 2026-09-08 · Alinhado com a SPEC v1.2 (fases) e o estado real do c�
 **O jogo está jogável em produção** (`https://pandemic-game-fc1f.onrender.com`), com:
 mundo por sessão, 6 agentes, 9 árvores genéticas (53 nós), 3 cenários PvE, Humanity AI
 adaptativa, score 0–1000 com top-10 local, medalhas por desempenho, dev console com
-telemetria/win-rate e QA automático (CI a cada push) — e, desde a **rev 1.4**, o
-**modo VIRUS (PvP 2–6 operadores)** em `/pvp` com salas, lobby e score composto (§15.2).
+telemetria/win-rate e QA automático (CI a cada push) — desde a **rev 1.4** o **modo VIRUS
+(PvP 2–6 operadores)** com salas, lobby e score composto (§15.2), e desde a **rev 1.5** o
+**hub pós-entrada em `/play`**: Dashboard/PvE/PvP/Leaderboard/Skins/Settings; o simulador
+PvE mudou para `/pve` e o hall de fim de jogo (PvE+PvP) vive em `/api/me` + `/api/hall`.
 
 ---
 
@@ -68,7 +70,7 @@ telemetria/win-rate e QA automático (CI a cada push) — e, desde a **rev 1.4**
 | Persistência | ⚠️ falta disco persistente no Render (telemetria/mundos perdem-se no redeploy) |
 | Alertas | `DEV_WEBHOOK_URL` opcional (boot/5xx/crash) — por configurar |
 | CI | GitHub Actions: smoke+concurrency+balance+agents+e2e a cada push (~45 s, verde) |
-| QA local | `cd qa && npm i && npx playwright install chromium && node qa/run-all.mjs --full --ui` (PvE) · `node qa/pvp-http.mjs && node qa/pvp-ui.mjs && node qa/pvp-end.mjs` (PvP) |
+| QA local | `cd qa && npm i && npx playwright install chromium && node qa/run-all.mjs --full --ui` (PvE) · `node qa/pvp-http.mjs && node qa/pvp-ui.mjs && node qa/pvp-end.mjs` (PvP) · `node qa/hub.mjs [--seed-hall]` (hub rev 1.5) |
 
 ## Próximos passos sugeridos (por prioridade)
 

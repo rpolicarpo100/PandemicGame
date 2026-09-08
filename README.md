@@ -14,12 +14,14 @@
 
 ## Estado atual (2026-09-08)
 
-- **Vertical slice em produção e jogável** (rev 1.4): 179 regiões reais, 6 agentes, 9 árvores
+- **Vertical slice em produção e jogável** (rev 1.5): 179 regiões reais, 6 agentes, 9 árvores
   (53 nós), 3 cenários PvE, Humanity AI adaptativa, score + top-10 local + medalhas,
-  **modo VIRUS PvP 2–6 operadores em `/pvp`** (salas com código, lobby, score composto §15.2),
+  **hub pós-entrada em `/play`** (Dashboard/PvE/PvP/Leaderboard/Skins/Settings; PvE real em
+  `/pve`, **modo VIRUS PvP 2–6 operadores em `/pvp`** — salas com código, lobby, score composto §15.2),
   dev console autenticado (`DEV_ACCESS_KEY` fixa ativa), CI verde a cada push. Ver
   `game/README.md`, `ROADMAP.md` e `RECOMENDACOES-CRITICAS.md`.
 - **Operação**: deploy automático na Render; falta apenas o disco persistente (1 clique no
   dashboard) para telemetria/mundos/salas sobreviverem a deploys — ver `DEPLOY-RENDER.md` (local, com chaves).
 - **Próximo passo:** playtest aberto (gate formal da Phase 1) com win rate humano por cenário
-  no `/dev`; campanha PvE (Phase 2); teste social do VIRUS (Phase 3) com 2–6 na mesma sala.
+  no `/dev`; campanha PvE (Phase 2); teste social do VIRUS (Phase 3) com 2–6 na mesma sala —
+  o hub é o ponto único de entrada (`/play`).

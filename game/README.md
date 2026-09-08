@@ -5,7 +5,9 @@ Protótipo jogável do core game, para validar **fun** antes de investir em PvP/
 ## Rotas
 
 * `/` — **homepage** futurista com connector Phantom (deteção real de `window.phantom.solana`; sem simulação de wallet) e cartões de modos PvE/PvP/EMBATE/Ranked
-* `/play` — o jogo
+* `/play` — o **hub** (posto de comando: Dashboard/PvE/PvP/Leaderboard/Skins/Settings)
+* `/pve` — o jogo **PvE** (simulador de pandemia, ex-`/play`)
+* `/pvp` — o modo **VIRUS** (PvP 2–6 jogadores em tempo real)
 * `/dev` — **DEV CONSOLE** (dashboard do dev: KPIs económicos/usuários/código, wallet real, auto-crítica) — ver `DEV-CONSOLE.md` na raiz
 
 ## Cenários PvE (variedade de modos dentro do PvE)

@@ -154,6 +154,13 @@ aside{width:400px;min-width:330px;background:var(--panel);border-left:1px solid 
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#180a0c;color:#ff9daa;
   border:1px solid var(--blood);padding:8px 18px;font-size:10.5px;letter-spacing:.2em;display:none;z-index:60}
 </style>
+<style id="pevoThemeCss">
+body[data-theme="amber"]{--bio:#ffc846;--bio2:#ffe08a;--amber:#ff9d2e;--blood:#ff5a3c;--bg:#080b06;--panel:#0c110a}
+body[data-theme="cyan"]{--bio:#4de3ff;--bio2:#9cf0ff;--amber:#ffd166;--blood:#ff3b4d;--bg:#080b06;--panel:#0c110a}
+body[data-theme="violet"]{--bio:#b48cff;--bio2:#d9c2ff;--amber:#ffd166;--blood:#ff5aa8;--bg:#080b06;--panel:#0c110a}
+body[data-theme="blood"]{--bio:#ff6b6b;--bio2:#ffb0b0;--amber:#ffc846;--blood:#ff2e3f;--bg:#080b06;--panel:#0c110a}
+body[data-theme="snow"]{--bio:#7ee8c8;--bio2:#c4f5e6;--amber:#f6e27a;--blood:#ff8f9f;--bg:#080b06;--panel:#0c110a}
+</style>
 </head>
 <body>
 <div class="hazard"></div>
@@ -505,7 +512,8 @@ let FLEET=[], fleetKey='';
 function buildFleet(){
   if(!S||!S.meta||!S.meta.edges)return;
   // M3: densidade da frota adapta-se ao ecrã (até ao equivalente a 900px de largura)
-  const fk=Math.max(0.55,Math.min(1,Math.min(cv.width,900)/900));
+  if(window.__pevoMotion===undefined)window.__pevoMotion=false;
+  const fk=Math.max(0.55,Math.min(1,Math.min(cv.width,900)/900))*(window.__pevoMotion?0.5:1);
   const key=S.meta.edges.length+':'+S.regions.length+':'+S.scenario+':'+Math.round(fk*100);
   if(key===fleetKey)return;
   fleetKey=key; FLEET=[];
@@ -907,5 +915,36 @@ es.onopen=()=>{document.getElementById('neterr').style.display='none';};
 es.onerror=()=>{document.getElementById('neterr').style.display='block';};
 es.onmessage=e=>{try{S=JSON.parse(e.data);markMajors();render();}catch(_){}};
 </script>
+<script>
+/* rev 1.5 — preferências do hub (skin/settings) aplicadas ao simulador */
+(function(){
+  try{
+    var sk=JSON.parse(localStorage.getItem('pevo.skin')||'null');
+    if(sk&&sk.theme&&sk.theme!=='bio')document.body.dataset.theme=sk.theme;
+  }catch(e){}
+  try{
+    var st=JSON.parse(localStorage.getItem('pevo.settings')||'null');
+    if(st){
+      if(st.motion===true)window.__pevoMotion=true;
+      if(st.wire===false){var w=document.getElementById('wire');if(w)w.style.display='none';}
+    }
+  }catch(e){}
+  window.addEventListener('storage',function(ev){
+    if(ev.key==='pevo.settings'||ev.key==='pevo.skin'){
+      try{
+        var st=JSON.parse(localStorage.getItem('pevo.settings')||'null');
+        var m=st&&st.motion===true;
+        if(m!==window.__pevoMotion){
+          window.__pevoMotion=m;
+          if(typeof buildFleet==='function'){buildFleet();}
+        }
+        var sk=JSON.parse(localStorage.getItem('pevo.skin')||'null');
+        if(sk&&sk.theme)document.body.dataset.theme=sk.theme;
+      }catch(e){}
+    }
+  });
+})();
+</script>
+
 </body>
 </html>

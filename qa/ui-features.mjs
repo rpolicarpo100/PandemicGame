@@ -17,7 +17,7 @@ const results = [];
 const check = (n, ok, d = '') => { results.push([n, !!ok, d]); console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${n}${d ? ' — ' + d : ''}`); };
 
 console.log(`\n▶ UI FEATURES (C1·M1·M2·M3·A2) — ${BASE}\n`);
-await page.goto(BASE + '/play');
+await page.goto(BASE + '/pve');
 await page.waitForFunction(() => typeof S !== 'undefined' && S && S.phase === 'setup');
 
 // ---- M3: frota adaptativa ----
@@ -103,7 +103,7 @@ check('top-10 mantém-se entre rondas', (await page.evaluate(() => JSON.parse(lo
 // ---- C1: outro browser (contexto novo) entra num mundo próprio ----
 const ctx2 = await b.newContext();
 const other = await ctx2.newPage();
-await other.goto(BASE + '/play');
+await other.goto(BASE + '/pve');
 await other.waitForFunction(() => typeof S !== 'undefined' && S);
 const otherState = await other.evaluate(() => ({ phase: S.phase, scenario: S.scenario }));
 check('C1: outro browser entra em setup (mundo próprio)', otherState.phase === 'setup',
@@ -112,7 +112,7 @@ await ctx2.close();
 
 // ---- A2: iron mostra a barra de 90% no header/briefing ----
 const page3 = await b.newPage({ viewport: { width: 1400, height: 900 } });
-await page3.goto(BASE + '/play');
+await page3.goto(BASE + '/pve');
 await page3.waitForFunction(() => typeof S !== 'undefined' && S && S.phase === 'setup');
 await page3.evaluate(() => fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'newgame', scenario: 'iron' }) }));
 await page3.waitForFunction(() => S && S.scenario === 'iron' && S.phase === 'setup');

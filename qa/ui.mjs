@@ -61,12 +61,12 @@ const goto = async (p, name) => {
 };
 
 await goto('/', 'home');
-await goto('/play', 'play');
+await goto('/pve', 'pve');
 await page.waitForTimeout(6000);
 const bodyLen = (await page.content()).length;
-check('play: UI renderiza com conteúdo', bodyLen > 3000, bodyLen + ' bytes de DOM');
+check('pve: UI renderiza com conteúdo', bodyLen > 3000, bodyLen + ' bytes de DOM');
 const hasCanvas = await page.locator('canvas').count().catch(() => 0);
-check('play: mapa/canvas presente', hasCanvas >= 1, `canvas=${hasCanvas}`);
+check('pve: mapa/canvas presente', hasCanvas >= 1, `canvas=${hasCanvas}`);
 
 await goto('/dev', 'dev dashboard');
 const txt = await page.locator('body').innerText();

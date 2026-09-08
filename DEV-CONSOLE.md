@@ -30,7 +30,7 @@ Tudo o que mostra é **medido em runtime** — nenhum número inventado.
 **Utilizadores & tráfego** (privacidade: IPs anonimizados — último octeto a zero; UA truncado)
 - `sse.active/peak` — sessões SSE agora e pico histórico (cada `/events` = 1 sessão de jogo).
 - `sessionsToday/sessionsTotal`, `avgSec` — duração média.
-- `views` — derivado dos contadores por rota (`/`, `/play`, `/dev`).
+- `views` — derivado dos contadores por rota (`/`, `/play`=hub, `/pve`, `/pvp`, `/dev`).
 - `returningIps` — IPs anonimizados com ≥2 sessões.
 - `rings` — atividade por minuto (última hora, 60 bins) para os sparklines.
 

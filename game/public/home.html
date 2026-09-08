@@ -128,7 +128,7 @@ footer .dc{color:var(--dim);font-size:10px;letter-spacing:.3em;margin-top:16px;t
 <div class="wrap">
   <div class="topbar">
     <div class="doc">DOSSIER <b>PE-001</b> // CLASSIFICAÇÃO: <b>NÍVEL 4</b> // DISTRIBUIÇÃO: RESTRITA</div>
-    <nav class="nav"><a href="#modos">Modos</a><a href="#economia">Economia</a><a href="#roadmap">Roadmap</a><a href="/play">Simulação</a><a href="/dev" style="color:var(--amber)">DEV</a></nav>
+    <nav class="nav"><a href="#modos">Modos</a><a href="#economia">Economia</a><a href="#roadmap">Roadmap</a><a href="/play">Jogar</a><a href="/dev" style="color:var(--amber)">DEV</a></nav>
   </div>
 
   <div class="hero">
@@ -139,7 +139,7 @@ footer .dc{color:var(--dim);font-size:10px;letter-spacing:.3em;margin-top:16px;t
       A Humanity é uma <b>inteligência adaptativa</b> que aprende com os teus erros. Cada partida gera
       um surto diferente — e uma história diferente. <b>Jogar é gratuito. O Web3 é opcional.</b></p>
       <div class="cta">
-        <a class="btn primary" href="/play">▶ Iniciar simulação</a>
+        <a class="btn primary" href="/play">▶ Entrar no posto de comando</a>
         <button class="btn" id="connectBtn">◈ Ligar Phantom</button>
       </div>
       <div id="walletPanel"></div>
@@ -183,7 +183,7 @@ footer .dc{color:var(--dim);font-size:10px;letter-spacing:.3em;margin-top:16px;t
         <span class="ds">PvE · operador vs Humanity AI · mundo próprio por sessão. Seis agentes, nove árvores genéticas e três cenários com regras próprias de deteção, relógio e recursos.
           <span class="chips"><span class="chip bio">6 agentes</span><span class="chip bio">Silent Dawn</span><span class="chip bio">Global Rush</span><span class="chip bio">Iron World</span></span>
         </span>
-        <span class="stx"><span class="stamp st op">Operacional · v1.4</span></span>
+        <span class="stx"><span class="stamp st op">Operacional · v1.5</span></span>
       </div>
       <div class="row">
         <span class="idx">02</span>
@@ -191,7 +191,7 @@ footer .dc{color:var(--dim);font-size:10px;letter-spacing:.3em;margin-top:16px;t
         <span class="ds">PvP · 2–6 agentes no mesmo mundo (179 regiões). Score composto: infeção sustentável, regiões, objetivos, eficiência. Nunca “quem matou mais”.
           <span class="chips"><span class="chip bio">2–6 agentes</span><span class="chip bio">salas com código</span><span class="chip bio">relógio do host</span><a href="/pvp" class="chip bio" style="text-decoration:none">ABRIR SALA →</a></span>
         </span>
-        <span class="stx"><span class="stamp st op">Operacional · v1.4</span></span>
+        <span class="stx"><span class="stamp st op">Operacional · v1.5</span></span>
       </div>
       <div class="row">
         <span class="idx">03</span>
@@ -305,7 +305,7 @@ footer .dc{color:var(--dim);font-size:10px;letter-spacing:.3em;margin-top:16px;t
   <div class="wrap">
     <div class="tg">Evolve. Adapt. <em>Dominate.</em></div>
     <div class="tg" style="font-size:clamp(14px,2vw,20px);color:var(--dim);margin-top:8px">Own your legacy.</div>
-    <div class="dc">GAME FIRST → COMPETITION → RETENTION → WEB3 → ECONOMY &nbsp;//&nbsp; REV 1.4 · 2026-09-08 · FIM DO DOCUMENTO</div>
+    <div class="dc">GAME FIRST → COMPETITION → RETENTION → WEB3 → ECONOMY &nbsp;//&nbsp; REV 1.5 · 2026-09-08 · FIM DO DOCUMENTO</div>
   </div>
 </footer>
 <div class="hazard"></div>
@@ -336,6 +336,7 @@ btn.addEventListener('click',async()=>{
     btn.textContent='◈ A ligar…';
     const resp=await provider.connect();
     const pk=resp.publicKey.toString();
+    try{localStorage.setItem('pevo.wallet',JSON.stringify({addr:pk,t:Date.now()}))}catch(_){}
     btn.textContent='◈ '+short(pk);
     panel.style.display='block';
     panel.innerHTML='<span class="ok">✔ Wallet conectada</span> — <span class="addr">'+pk+'</span>'+
@@ -345,6 +346,7 @@ btn.addEventListener('click',async()=>{
       e.preventDefault();
       try{await provider.disconnect();}catch(_){}
       btn.textContent='◈ Ligar Phantom'; panel.style.display='none';
+      try{localStorage.removeItem('pevo.wallet')}catch(_){}
     };
   }catch(err){
     btn.textContent='◈ Ligar Phantom';
@@ -352,6 +354,13 @@ btn.addEventListener('click',async()=>{
     panel.innerHTML='<span class="warn">⚠ Ligação recusada ou falhou.</span><div class="note">'+String(err&&err.message||err)+'</div>';
   }
 });
+/* rev 1.5 — wallet persistente partilhada com o /play */
+(function(){
+  try{
+    const w=JSON.parse(localStorage.getItem('pevo.wallet')||'null');
+    if(w&&w.addr){btn.textContent='◈ '+short(w.addr);btn.title=w.addr;}
+  }catch(_){}
+})();
 </script>
 </body>
 </html>

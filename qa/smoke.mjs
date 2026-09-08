@@ -12,7 +12,10 @@ check('GET / 200', r.status === 200, `HTTP ${r.status}`);
 check('home.html servido', /PANDEMIC EVOLUTION/.test(r.txt));
 
 r = await jget('/play');
-check('GET /play 200', r.status === 200, `HTTP ${r.status}`);
+check('GET /play 200 (hub)', r.status === 200, `HTTP ${r.status}`);
+
+r = await jget('/pve');
+check('GET /pve 200 (simulador)', r.status === 200, `HTTP ${r.status}`);
 
 r = await jget('/world.js');
 check('GET /world.js 200', r.status === 200, `HTTP ${r.status}`);

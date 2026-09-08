@@ -13,7 +13,7 @@ const check = (n, ok, d = '') => { results.push([n, !!ok, d]); console.log(`  [$
 console.log(`\n▶ R7 EXTRA (R6·R3·R9) — ${BASE}\n`);
 
 // ---- R3: medalOf (funções globais do inline script; requer /play carregado) ----
-await page.goto(BASE + '/play');
+await page.goto(BASE + '/pve');
 await page.waitForFunction(() => typeof S !== 'undefined' && S && S.phase === 'setup');
 const medal = await page.evaluate(() => {
   const mk = dp => medalOf({ win: false, dead: dp * 100, worldPop: 100 });

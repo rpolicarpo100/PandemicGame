@@ -642,6 +642,42 @@ const SESS_MAX = 96;
 const SAVE_FILE = process.env.SAVE_FILE || path.join(os.tmpdir(), 'pevo-world-save.json');
 let _lastSave = 0;
 
+// ---------- Leaderboard público (rev 1.5) — partidas terminadas, alias pseudo-anónimo ----------
+// Volátil (memória, como as salas). Sem contas: alias estável por sessão (hash do sid).
+const HALL = { pve: [], pvp: [] };
+const HALL_CAP = 150;
+const aliasOf = sid => {
+  let h = 0; for (const c of String(sid)) h = (h * 33 + c.charCodeAt(0)) >>> 0;
+  return 'OP-' + h.toString(36).toUpperCase().slice(0, 4).padEnd(4, '0');
+};
+function hallPush(list, entry) {
+  list.push(entry);
+  if (list.length > HALL_CAP) list.shift();
+}
+function hallPushPve(sid, g) {
+  if (!g || !g.result || !g.result.score) return;
+  const a = AGENTS.find(x => x.id === g.agent) || AGENTS[0];
+  hallPush(HALL.pve, {
+    t: Date.now(), alias: aliasOf(sid), mode: 'pve', icon: a.icon, agent: g.agent,
+    scenario: g.scenario || 'standard',
+    score: g.result.score.value, win: !!g.result.win, day: g.result.day,
+    deadPct: +(100 * (g.result.dead || 0) / WORLD_POP).toFixed(1),
+  });
+  g._hallPushed = true;
+}
+function hallPushPvp(room) {
+  const rk = (room.result && room.result.ranking) || [];
+  for (const r of rk) {
+    hallPush(HALL.pvp, {
+      t: Date.now(), alias: aliasOf(r.key), mode: 'pvp', icon: r.icon || '▣', agent: r.agent,
+      scenario: 'pvp', score: r.score, win: rk[0] && rk[0].key === r.key, day: room.result.day || room.day,
+      deadPct: r.deadPct !== undefined ? r.deadPct : +(r.cumPct || 0),
+    });
+  }
+  room._hallPushed = true;
+}
+const hallSorted = (list, n) => list.slice().sort((a, b) => b.score - a.score || a.t - b.t).slice(0, n);
+
 function sidOf(url, req) {
   const q = url.searchParams.get('sid');
   if (q && /^[A-Za-z0-9_-]{4,64}$/.test(q)) return 'q_' + q;
@@ -704,6 +740,7 @@ function restoreWorld() {
       if (!e || !e.g || SESS.has(e.id) || SESS.size >= SESS_MAX) continue;
       const g = newGame(SCENARIOS[e.g.scenario] ? e.g.scenario : null);
       Object.assign(g, e.g);
+      if (g.phase === 'ended') g._hallPushed = true;   // não re-registar no hall partidas de uptimes anteriores
       g.tags = new Set(Array.isArray(e.g.tags) ? e.g.tags : []);
       g.sc = (e.g.scenario && SCENARIOS[e.g.scenario]) || null;
       SESS.set(e.id, { id: e.id, agent: e.agent || 'bacteria', game: g, lastSeen: Date.now(), sse: new Set(), acts: [] });
@@ -744,8 +781,12 @@ const server = http.createServer((req, res) => {
     return res.end(fs.readFileSync(path.join(__dirname, 'public', 'home.html')));
   }
   if (req.method === 'GET' && url.pathname === '/play') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(fs.readFileSync(path.join(__dirname, 'public', 'hub.html')));   // rev 1.5 — hub com tabs
+  }
+  if (req.method === 'GET' && url.pathname === '/pve') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
+    return res.end(fs.readFileSync(path.join(__dirname, 'public', 'index.html'))); // simulação PvE (tab do hub)
   }
   if (req.method === 'GET' && (url.pathname === '/pvp' || url.pathname === '/pvp/')) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -782,7 +823,7 @@ const server = http.createServer((req, res) => {
         if (b.type === 'newgame') {
           const sc = b.scenario && SCENARIOS[b.scenario] ? b.scenario : null;
           const old = s.game;
-          if (old) dev.onNewGame(old, sc);
+          if (old) { dev.onNewGame(old, sc); if (old.result && !old._hallPushed) hallPushPve(s.id, old); }
           s.game = freshGame(s.agent, sc);
           G = s.game;
           out = { ok: true, scenario: G.scenario };
@@ -885,6 +926,18 @@ const server = http.createServer((req, res) => {
     s.pvpCode = null;
     return pvpOk({});
   }
+  if (req.method === 'GET' && url.pathname === '/api/me') {
+    const live = s.game ? { phase: s.game.phase, day: s.game.day, scenario: s.game.scenario, speed: s.game.speed } : null;
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({ ok: true, alias: aliasOf(s.id), agent: s.agent || null, live }));
+  }
+  if (req.method === 'GET' && url.pathname === '/api/hall') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({
+      ok: true, pve: hallSorted(HALL.pve, 50), pvp: hallSorted(HALL.pvp, 50),
+      counts: { pve: HALL.pve.length, pvp: HALL.pvp.length }, alias: aliasOf(s.id),
+    }));
+  }
   if (req.method === 'POST' && url.pathname === '/pvp/act') {
     const now = Date.now();
     s.acts = s.acts.filter(t => now - t < 10000);
@@ -923,6 +976,7 @@ if (require.main === module) {
         while (g.acc >= TICK_MS) { tick(); ran = true; g.acc -= TICK_MS; if (g.phase !== 'running') break; }
         if (ran) { dev.loopMs(Date.now() - t0); dev.tickMark(); }
       }
+      if (g.phase === 'ended' && g.result && !g._hallPushed) hallPushPve(s.id, g);   // leaderboard público
       ssePush(s);
     }
     maybeSave(false);
@@ -934,6 +988,9 @@ if (require.main === module) {
   setInterval(() => {
     pvp.api.advance(500);
     const now = Date.now();
+    for (const room of pvp.ROOMS.values()) {
+      if (room.phase === 'ended' && room.result && !room._hallPushed) hallPushPvp(room);
+    }
     if (now - lastSweep > 5 * 60e3) { pvp.sweepAbandoned(now); lastSweep = now; }
     for (const [code, m] of PVP_SSE) {
       const room = pvp.ROOMS.get(code);

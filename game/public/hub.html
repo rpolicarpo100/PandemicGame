@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PANDEMIC EVOLUTION · POSTO DE COMANDO</title>
+<style>
+:root{
+  --bg:#070a05; --panel:#0c110a; --panel2:#10170b; --line:#1e2a14; --line2:#2c3d1e;
+  --txt:#d9e8ca; --dim:#7f9470; --dim2:#55684a;
+  --bio:#a8ff3e; --bio2:#d8ff85; --amber:#ffc846; --blood:#ff3b4d; --cyan:#4de3ff; --violet:#b48cff; --rose:#ff7bac;
+  --mono:ui-monospace,'Cascadia Mono','JetBrains Mono',Consolas,monospace;
+}
+body[data-theme="amber"]{--bio:#ffc846;--bio2:#ffe08a;--amber:#ff9d2e;--blood:#ff5a3c}
+body[data-theme="cyan"]{--bio:#4de3ff;--bio2:#9cf0ff;--amber:#ffd166;--blood:#ff3b4d}
+body[data-theme="violet"]{--bio:#b48cff;--bio2:#d9c2ff;--amber:#ffd166;--blood:#ff5aa8}
+body[data-theme="blood"]{--bio:#ff6b6b;--bio2:#ffb0b0;--amber:#ffc846;--blood:#ff2e3f}
+body[data-theme="snow"]{--bio:#7ee8c8;--bio2:#c4f5e6;--amber:#f6e27a;--blood:#ff8f9f;--bg:#070b0d;--panel:#0a1114;--panel2:#0d161a;--line:#17303a;--line2:#1e3d49}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12.5px;letter-spacing:.02em;overflow:hidden;display:flex;flex-direction:column}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")}
+button{font-family:var(--mono);cursor:pointer}
+.hazard{height:4px;flex:none;background:repeating-linear-gradient(-45deg,var(--amber) 0 9px,#0b0b07 9px 18px)}
+
+/* header */
+header{flex:none;display:flex;align-items:stretch;border-bottom:1px solid var(--line);background:rgba(9,12,6,.95);z-index:5}
+.brand{display:flex;flex-direction:column;justify-content:center;padding:0 16px;border-right:1px solid var(--line);white-space:nowrap}
+.brand .t1{font-weight:700;letter-spacing:.16em;font-size:12px}
+.brand .t1 b{color:var(--bio)}
+.brand .t2{font-size:9px;letter-spacing:.34em;color:var(--dim);margin-top:2px}
+nav{display:flex;align-items:stretch;flex:1;overflow-x:auto}
+nav button{border:0;border-right:1px solid var(--line);background:transparent;color:var(--dim);padding:0 20px;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;white-space:nowrap}
+nav button:hover{color:var(--txt)}
+nav button.act{color:var(--bio);box-shadow:inset 0 -2px 0 var(--bio);background:rgba(168,255,62,.04)}
+.hd-right{display:flex;align-items:center;gap:10px;padding:0 12px;border-left:1px solid var(--line)}
+#walletChip{border:1px solid var(--line2);color:var(--dim);padding:6px 12px;font-size:10px;letter-spacing:.1em;background:transparent;white-space:nowrap}
+#walletChip.on{color:var(--bio);border-color:var(--bio)}
+#walletChip.off:hover{color:var(--bio);border-color:var(--bio)}
+.hdlink{color:var(--dim);font-size:10px;letter-spacing:.15em;text-decoration:none;border:1px solid var(--line2);padding:6px 10px}
+.hdlink:hover{color:var(--txt);border-color:var(--txt)}
+
+/* main + tabs */
+main{flex:1;position:relative;min-height:0;overflow:hidden}
+.tabpane{position:absolute;inset:0;display:none;overflow:auto;padding:22px 26px}
+.tabpane.on{display:block}
+.pane-wrap{width:min(1180px,100%);margin:0 auto}
+.pane-h{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:18px}
+.pane-h h2{font-size:15px;letter-spacing:.3em;font-weight:700}
+.pane-h h2 b{color:var(--bio)}
+.pane-h .sub{color:var(--dim);font-size:10.5px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{border:1px solid var(--line);background:rgba(12,17,10,.88);padding:16px 18px}
+.card h3{font-size:10px;letter-spacing:.26em;color:var(--dim);margin-bottom:12px;text-transform:uppercase}
+.big{font-size:24px;font-weight:700;color:var(--txt);letter-spacing:.02em}
+.big em{font-style:normal;color:var(--bio)}
+.small{color:var(--dim);font-size:10.5px;line-height:1.6;margin-top:6px}
+.rowline{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 2px;border-bottom:1px dashed var(--line);font-size:11px}
+.rowline .k{color:var(--dim)}
+.rowline .v{font-weight:700}
+.chip{display:inline-block;font-size:9px;letter-spacing:.16em;border:1px solid var(--line2);color:var(--dim);padding:2px 8px;margin-right:6px;margin-top:6px}
+.chip.ok{color:var(--bio);border-color:var(--bio)}
+.chip.warn{color:var(--amber);border-color:var(--amber)}
+.chip.dead{color:var(--blood);border-color:var(--blood)}
+.btn{display:inline-block;border:1px solid var(--bio);background:transparent;color:var(--bio);padding:10px 18px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;text-decoration:none;margin-top:12px}
+.btn:hover{background:rgba(168,255,62,.09)}
+.btn.primary{background:var(--bio);color:#0a0d06}
+.btn.primary:hover{background:var(--bio2)}
+.btn.ghost{border-color:var(--line2);color:var(--dim)}
+.btn.ghost:hover{border-color:var(--txt);color:var(--txt)}
+.btn.danger{border-color:var(--blood);color:var(--blood)}
+.btn.danger:hover{background:rgba(255,59,77,.08)}
+.hstack{display:flex;gap:10px;flex-wrap:wrap}
+
+/* iframes */
+.frame-holder{position:relative;width:100%;height:100%;border:0}
+.frame-holder iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg)}
+
+/* leaderboard */
+.lb-src{display:flex;gap:8px;margin-bottom:14px}
+.lb-src button{border:1px solid var(--line2);background:transparent;color:var(--dim);padding:7px 16px;font-size:10px;letter-spacing:.2em}
+.lb-src button.act{color:var(--bio);border-color:var(--bio)}
+table.lb{width:100%;border-collapse:collapse}
+table.lb th{font-size:9px;letter-spacing:.24em;color:var(--dim);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line2);text-transform:uppercase}
+table.lb td{font-size:11px;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.lb tr:hover td{background:rgba(168,255,62,.03)}
+table.lb .pos{width:38px;color:var(--dim)}
+table.lb tr.me td{background:rgba(168,255,62,.06)}
+.medal{font-size:14px}
+.empty{color:var(--dim2);font-size:11px;padding:22px 4px;line-height:1.7}
+
+/* skins */
+.sw-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.sw{width:104px;border:1px solid var(--line2);background:var(--panel2);padding:10px;text-align:center;cursor:pointer;color:var(--dim);font-size:9.5px;letter-spacing:.14em}
+.sw i{display:block;height:34px;margin-bottom:8px;border:1px solid rgba(255,255,255,.08)}
+.sw.act{border-color:var(--bio);color:var(--txt);box-shadow:0 0 0 1px var(--bio) inset}
+.av-row{display:flex;gap:8px;flex-wrap:wrap}
+.av{border:1px solid var(--line2);background:var(--panel2);color:var(--dim);font-size:13px;padding:9px 13px;cursor:pointer}
+.av.act{border-color:var(--bio);color:var(--bio);background:rgba(168,255,62,.07)}
+.av span{display:block;font-size:9px;letter-spacing:.1em;margin-top:3px;color:var(--dim)}
+
+/* settings */
+.switch{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 2px;border-bottom:1px dashed var(--line)}
+.switch .t{font-size:11.5px}
+.switch .d{color:var(--dim);font-size:10px;margin-top:2px}
+.tgl{position:relative;width:44px;height:22px;border:1px solid var(--line2);background:#0d120b;flex:none;cursor:pointer}
+.tgl::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;background:var(--dim2);transition:.15s}
+.tgl.on{border-color:var(--bio)}
+.tgl.on::after{left:25px;background:var(--bio)}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#142012;border:1px solid var(--bio);color:var(--bio);font-size:10.5px;letter-spacing:.1em;padding:9px 18px;z-index:60;display:none}
+::-webkit-scrollbar{width:9px}::-webkit-scrollbar-thumb{background:#22301a;border:1px solid #101608}::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body data-theme="bio">
+<div class="hazard"></div>
+<header>
+  <div class="brand"><div class="t1"><b>PANDEMIC</b> EVOLUTION</div><div class="t2">POSTO DE COMANDO · v1.5</div></div>
+  <nav id="tabs">
+    <button data-tab="dash" class="act">Dashboard</button>
+    <button data-tab="pve">PvE</button>
+    <button data-tab="pvp">PvP</button>
+    <button data-tab="lb">Leaderboard</button>
+    <button data-tab="skins">Skins</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+  <div class="hd-right">
+    <button id="walletChip" class="off">◈ wallet</button>
+    <a class="hdlink" href="/">‹ home</a>
+  </div>
+</header>
+
+<main>
+  <!-- ============ DASHBOARD ============ -->
+  <section class="tabpane on" id="pane-dash">
+    <div class="pane-wrap">
+      <div class="pane-h"><h2>DASHBOARD · <b id="dashName">…</b></h2><span class="sub" id="dashAlias"></span></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>MODOS DE OPERAÇÃO</h3>
+          <div class="rowline"><span class="k">PvE — Pandemia (1 jogador vs Humanity)</span><span class="chip ok">aberto</span></div>
+          <div class="rowline"><span class="k">PvP — Virus (salas 2–6)</span><span class="chip ok">aberto</span></div>
+          <div class="rowline"><span class="k">Campanha por capítulos</span><span class="chip warn">Phase 2 · em curso</span></div>
+          <div class="hstack">
+            <a class="btn primary" id="goPve" href="#pve">▶ Entrar no PvE</a>
+            <a class="btn" id="goPvp" href="#pvp">▶ Salas PvP</a>
+          </div>
+        </div>
+        <div class="card">
+          <h3>PARTIDA PvE DESTA SESSÃO</h3>
+          <div id="liveBox"><div class="small">a consultar o servidor…</div></div>
+          <div class="hstack"><a class="btn" id="contPve" href="#pve" style="display:none">Continuar partida</a></div>
+        </div>
+        <div class="card">
+          <h3>WALLET</h3>
+          <div id="walletBox"><div class="small">sem wallet ligada — o jogo é livre; a wallet é opcional (leitura on-chain).</div></div>
+          <button class="btn ghost" id="walletBtn">◈ Ligar Phantom</button>
+          <div class="small">Hold gate 10.000 $PEVO — ativo apenas na Phase 7. Até lá não há qualquer custo.</div>
+        </div>
+        <div class="card">
+          <h3>RECORDES LOCAIS (este browser)</h3>
+          <div id="localTop"></div>
+          <div class="small" style="margin-top:8px">guarda automática das tuas melhores partidas PvE — no separador Leaderboard vês tudo.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PvE ============ -->
+  <section class="tabpane" id="pane-pve">
+    <div class="frame-holder" id="pveFrameHolder"></div>
+  </section>
+
+  <!-- ============ PVP ============ -->
+  <section class="tabpane" id="pane-pvp">
+    <div class="frame-holder" id="pvpFrameHolder"></div>
+  </section>
+
+  <!-- ============ LEADERBOARD ============ -->
+  <section class="tabpane" id="pane-lb">
+    <div class="pane-wrap">
+      <div class="pane-h"><h2>LEADERBOARD · <b>HALL OF FAME</b></h2>
+        <span class="sub" id="lbNote">partidas terminadas neste servidor (alias pseudo-anónimo por sessão) + recordes locais</span></div>
+      <div class="lb-src" id="lbSrc">
+        <button data-src="pve" class="act">PvE · GLOBAL</button>
+        <button data-src="pvp">PvP · SALAS</button>
+        <button data-src="local">LOCAL · ESTE BROWSER</button>
+      </div>
+      <div class="card" style="padding:8px 10px"><table class="lb"><thead>
+        <tr><th>#</th><th>operador</th><th>agente</th><th>modo/cenário</th><th>resultado</th><th>dia</th><th>mortos</th><th>score</th></tr>
+      </thead><tbody id="lbBody"></tbody></table>
+      <div class="empty" id="lbEmpty" style="display:none"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ SKINS ============ -->
+  <section class="tabpane" id="pane-skins">
+    <div class="pane-wrap">
+      <div class="pane-h"><h2>SKINS · <b>APARÊNCIA</b></h2><span class="sub">cosmético local (100% gratuito — zero pay-to-win, princípio absoluto do jogo)</span></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>PALETA DE COMANDO (tema do hub e do simulador)</h3>
+          <div class="sw-row" id="themeRow"></div>
+          <div class="small">aplicada ao posto de comando e ao simulador PvE (tab PvE) desta sessão.</div>
+        </div>
+        <div class="card">
+          <h3>AVATAR (ícone nos recordes e painéis)</h3>
+          <div class="av-row" id="avatarRow"></div>
+          <div class="small" style="margin-top:10px">o teu avatar assinala as tuas entradas no leaderboard local e no dashboard.</div>
+        </div>
+        <div class="card">
+          <h3>PRÉ-VISUALIZAÇÃO</h3>
+          <div class="small"><span id="prevAvatar" style="font-size:26px">🧬</span></div>
+          <div class="rowline"><span class="k">alínea de comando</span><span class="v" style="color:var(--bio)">— acento ativo —</span></div>
+          <div class="rowline"><span class="k">estado operacional</span><span class="chip ok">operacional</span></div>
+          <div class="small" style="margin-top:10px">Skins de verdade (mapa, biomas, agentes) chegam com a economia da Phase 7 — por decisão de design, primeiro o jogo, depois a loja.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section class="tabpane" id="pane-settings">
+    <div class="pane-wrap">
+      <div class="pane-h"><h2>SETTINGS</h2><span class="sub">preferências locais desta sessão/browser</span></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>SIMULADOR</h3>
+          <div class="switch"><div><div class="t">Frota em movimento reduzida</div><div class="d">menos veículos no mapa do PvE — melhor para ecrãs pequenos/portáteis lentos</div></div>
+            <button class="tgl" id="optMotion" data-k="motion"></button></div>
+          <div class="switch"><div><div class="t">Relógio do PvE começa pausado</div><div class="d">preferência de arranque da partida (a mudar também no jogo, ×0)</div></div>
+            <button class="tgl" id="optPaused" data-k="pause"></button></div>
+          <div class="switch"><div><div class="t">Wire (notícias) visível</div><div class="d">barra de notícias do mundo no simulador</div></div>
+            <button class="tgl" id="optWire" data-k="wire"></button></div>
+        </div>
+        <div class="card">
+          <h3>DADOS & PRIVACIDADE</h3>
+          <div class="small" style="margin-bottom:10px">Nada sai do browser sem seres tu: recordes, skins e preferências vivem em <b>localStorage</b>. As sessões no servidor são anónimas (cookie) e sem e-mail.</div>
+          <button class="btn danger" id="resetLocal">Apagar dados locais</button>
+          <div class="small" style="margin-top:12px">salas PvP e leaderboard global do servidor são voláteis (memória) — persistem só durante o uptime.</div>
+        </div>
+        <div class="card">
+          <h3>SISTEMA</h3>
+          <div class="rowline"><span class="k">servidor</span><span class="v" id="sysSrv">…</span></div>
+          <div class="rowline"><span class="k">sessão</span><span class="v" id="sysAlias">…</span></div>
+          <div class="rowline"><span class="k">revisão</span><span class="v">1.5 · 2026-09-08</span></div>
+          <div class="small">motor server-authoritative · zero dependências · QA automático por commit.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="hazard"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const LS = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+};
+const THEMES = [
+  { id: 'bio', name: 'BIO', css: 'linear-gradient(135deg,#a8ff3e,#4e7a12)', },
+  { id: 'amber', name: 'AMBER', css: 'linear-gradient(135deg,#ffc846,#8a5d00)' },
+  { id: 'cyan', name: 'GLACIAL', css: 'linear-gradient(135deg,#4de3ff,#0e5f74)' },
+  { id: 'violet', name: 'NANO', css: 'linear-gradient(135deg,#b48cff,#5b3a99)' },
+  { id: 'blood', name: 'HEMO', css: 'linear-gradient(135deg,#ff6b6b,#8c1f2e)' },
+  { id: 'snow', name: 'TUNDRA', css: 'linear-gradient(135deg,#7ee8c8,#1f6f66)' },
+];
+const AGENTS = [
+  { id: 'virus', icon: '🧬', name: 'Vírus' }, { id: 'bacteria', icon: '🦠', name: 'Bactéria' },
+  { id: 'fungo', icon: '🍄', name: 'Fungo' }, { id: 'priao', icon: '🧠', name: 'Prião' },
+  { id: 'nano', icon: '⚙️', name: 'Nano-vírus' }, { id: 'bio', icon: '☣️', name: 'Arma Biológica' },
+];
+const SCEN = { silent: 'SILENT', rush: 'RUSH', iron: 'IRON', standard: 'STANDARD', pvp: 'VIRUS PvP' };
+
+let skin = LS.get('pevo.skin', { theme: 'bio', avatar: 'virus' });
+let sett = LS.get('pevo.settings', { motion: false, pause: false, wire: true });
+let wallet = LS.get('pevo.wallet', null);
+let me = { alias: 'OP-····', agent: null, live: null };
+
+function toast(m) { const t = $('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3500); }
+function applySkin() {
+  document.body.dataset.theme = skin.theme;
+  renderSkins();
+  applyFrameSkin('pveFrame');
+  if (me && me.alias && $('dashName')) $('dashName').textContent = me.alias;
+}
+function applyFrameSkin(name) {
+  const f = document.getElementById(name);
+  if (f && f.contentDocument) {
+    try { f.contentDocument.documentElement.dataset.theme = skin.theme; } catch (_) {}
+  }
+}
+function setSkin(patch) { skin = Object.assign({}, skin, patch); LS.set('pevo.skin', skin); applySkin(); }
+
+/* ---------- tabs ---------- */
+function switchTab(name) {
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('act', b.dataset.tab === name));
+  document.querySelectorAll('.tabpane').forEach(p => p.classList.remove('on'));
+  const pane = $('pane-' + name);
+  pane.classList.add('on');
+  if (name === 'dash') refreshDash();
+  if (name === 'lb') refreshLB();
+  if (name === 'pve') ensureFrame('pveFrame', 'pveFrameHolder', '/pve', 'pve');
+  if (name === 'pvp') ensureFrame('pvpFrame', 'pvpFrameHolder', '/pvp', 'pvp');
+  history.replaceState(null, '', '#pvp'.replace('pvp', name === 'dash' ? '' : name));
+}
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (b) switchTab(b.dataset.tab);
+});
+document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => {
+  const t = a.getAttribute('href').slice(1); if (t && $('pane-' + t)) { e.preventDefault(); switchTab(t); }
+}));
+let frames = {};
+function ensureFrame(id, holderId, src, key) {
+  const holder = $(holderId);
+  if (!frames[id]) {
+    const ifr = document.createElement('iframe');
+    ifr.id = id; ifr.setAttribute('allow', 'clipboard-write');
+    ifr.src = src;
+    holder.appendChild(ifr);
+    frames[id] = ifr;
+    ifr.addEventListener('load', () => {
+      applyFrameSkin(id);
+      const doc = ifr.contentDocument;
+      if (doc && doc.defaultView) {
+        doc.defaultView.addEventListener('storage', () => { });
+        doc.defaultView.postMessage ? null : null;
+      }
+    });
+  }
+  // reflectir definições no iframe já carregado
+  if (frames[id].contentDocument) {
+    try {
+      frames[id].contentDocument.documentElement.dataset.theme = skin.theme;
+    } catch (_) {}
+  }
+}
+
+/* ---------- dashboard ---------- */
+async function refreshDash() {
+  const top = LS.get('pevo.top10', []);
+  const box = $('localTop');
+  if (!top.length) { box.innerHTML = '<div class="small">ainda sem recordes — joga uma partida PvE e o teu top-10 fica guardado aqui.</div>'; }
+  else {
+    box.innerHTML = top.slice(0, 3).map((e, i) => {
+      const ag = AGENTS.find(a => a.id === e.agent);
+      return '<div class="rowline"><span class="k">' + (i + 1) + 'º ' + (ag ? ag.icon : '') + ' ' + (ag ? ag.name : e.agent) +
+        ' · ' + (SCEN[e.scenario] || (e.scenario || '').toUpperCase()) + ' · dia ' + e.day + '</span>' +
+        '<span class="v">' + e.score + (e.win ? ' <span class="chip ok">V</span>' : '') + '</span></div>';
+    }).join('') + '<div class="small">ver tudo no Leaderboard →</div>';
+  }
+  try {
+    const r = await fetch('/api/me'); me = await r.json();
+  } catch (_) {}
+  const alias = me && me.alias ? me.alias : $('dashAlias').textContent;
+  $('dashName').textContent = me.alias || 'OPERADOR';
+  $('dashAlias').textContent = 'sessão anónima · ' + (me.alias || '');
+  const lb = $('liveBox');
+  const live = me && me.live;
+  const ag = live && live.agent ? AGENTS.find(a => a.id === live.agent) : AGENTS.find(a => a.id === me.agent);
+  if (live && live.phase === 'running') {
+    lb.innerHTML = '<div class="rowline"><span class="k">estado</span><span class="chip ok">EM CURSO</span></div>' +
+      '<div class="rowline"><span class="k">dia</span><span class="v">' + live.day + '</span></div>' +
+      '<div class="rowline"><span class="k">cenário</span><span class="v">' + (SCEN[live.scenario] || (live.scenario || '').toUpperCase() || '—') + '</span></div>' +
+      '<div class="small">a partida continua no separador PvE.</div>';
+    $('contPve').style.display = 'inline-block';
+  } else if (live && live.phase === 'ended') {
+    lb.innerHTML = '<div class="rowline"><span class="k">estado</span><span class="chip dead">TERMINADA</span></div>' +
+      '<div class="small">vê o resultado e o teu top-10 no separador PvE (ecrã final) ou começa nova partida.</div>';
+    $('contPve').style.display = 'inline-block';
+  } else {
+    lb.innerHTML = '<div class="rowline"><span class="k">estado</span><span class="v">sem partida ativa</span></div>' +
+      '<div class="small">primeira visita: abre o PvE, escolhe agente + cenário + região e semeia o paciente zero.</div>';
+    $('contPve').style.display = 'none';
+  }
+}
+
+/* ---------- leaderboard ---------- */
+let lbSrc = 'pve';
+async function refreshLB() {
+  if (!$('pane-lb').classList.contains('on')) return;
+  document.querySelectorAll('#lbSrc button').forEach(b => b.classList.toggle('act', b.dataset.src === lbSrc));
+  const body = $('lbBody'), empty = $('lbEmpty');
+  body.innerHTML = ''; empty.style.display = 'none';
+  if (lbSrc === 'local') {
+    const top = LS.get('pevo.top10', []);
+    if (!top.length) { empty.style.display = 'block'; empty.textContent = 'Sem recordes locais ainda — joga PvE e o teu top-10 fica aqui (este browser).'; return; }
+    top.forEach((e, i) => row(body, {
+      pos: i + 1, alias: 'LOCAL', icon: (AGENTS.find(a => a.id === e.agent) || {}).icon || '▣',
+      agent: e.agent, mode: SCEN[e.scenario] || e.scenario || '—', win: e.win, day: e.day,
+      deadPct: e.deadPct, score: e.score, mine: true,
+    }));
+    return;
+  }
+  let d;
+  try { d = await (await fetch('/api/hall')).json(); } catch (_) { d = null; }
+  if (!d || !d.ok) { empty.style.display = 'block'; empty.textContent = 'servidor indisponível.'; return; }
+  const list = lbSrc === 'pve' ? d.pve : d.pvp;
+  $('lbNote').textContent = 'partidas ' + (lbSrc === 'pve' ? 'PvE' : 'PvP') + ' terminadas neste servidor — ' +
+    d.counts[lbSrc] + ' no total · alias pseudo-anónimo por sessão · volátil (memória do servidor)';
+  if (!list.length) {
+    empty.style.display = 'block';
+    empty.textContent = 'Ainda sem partidas ' + (lbSrc === 'pve' ? 'PvE' : 'PvP') + ' terminadas neste servidor. As primeiras entradas aparecem aqui assim que alguém chega ao fim (vitória ou derrota).';
+    return;
+  }
+  list.forEach((e, i) => row(body, {
+    pos: i + 1, alias: e.alias, icon: e.icon || '▣', agent: e.agent, mode: SCEN[e.scenario] || e.scenario,
+    win: e.win, day: e.day, deadPct: e.deadPct, score: e.score, mine: e.alias === (me.alias || ''),
+  }));
+}
+function row(body, e) {
+  const tr = document.createElement('tr');
+  if (e.mine) tr.className = 'me';
+  tr.innerHTML =
+    '<td class="pos"><span class="medal">' + (e.pos === 1 ? '🥇' : e.pos === 2 ? '🥈' : e.pos === 3 ? '🥉' : String(e.pos)) + '</span></td>' +
+    '<td>' + e.alias + (e.mine ? ' <span class="chip ok">TU</span>' : '') + '</td>' +
+    '<td>' + e.icon + ' ' + (AGENTS.find(a => a.id === e.agent) || { name: e.agent }).name + '</td>' +
+    '<td>' + e.mode + '</td>' +
+    '<td>' + (e.win ? '<span class="chip ok">VITÓRIA</span>' : '<span class="chip dead">DERROTA</span>') + '</td>' +
+    '<td>' + e.day + '</td><td>' + (e.deadPct !== undefined ? e.deadPct + '%' : '—') + '</td>' +
+    '<td style="font-weight:700;color:var(--bio)">' + e.score + '</td>';
+  body.appendChild(tr);
+}
+$('lbSrc').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  lbSrc = b.dataset.src; refreshLB();
+});
+
+/* ---------- skins ---------- */
+function renderSkins() {
+  const tr = $('themeRow'); tr.innerHTML = '';
+  for (const t of THEMES) {
+    const d = document.createElement('div');
+    d.className = 'sw' + (skin.theme === t.id ? ' act' : '');
+    d.innerHTML = '<i style="background:' + t.css + '"></i>' + t.name;
+    d.onclick = () => setSkin({ theme: t.id });
+    tr.appendChild(d);
+  }
+  const ar = $('avatarRow'); ar.innerHTML = '';
+  for (const a of AGENTS) {
+    const d = document.createElement('button');
+    d.className = 'av' + (skin.avatar === a.id ? ' act' : '');
+    d.innerHTML = a.icon + '<span>' + a.name.toUpperCase() + '</span>';
+    d.onclick = () => setSkin({ avatar: a.id });
+    ar.appendChild(d);
+  }
+  $('prevAvatar').textContent = (AGENTS.find(a => a.id === skin.avatar) || {}).icon || '▣';
+}
+
+/* ---------- settings ---------- */
+function renderSetts() {
+  [['optMotion', 'motion'], ['optPaused', 'pause'], ['optWire', 'wire']].forEach(([id, k]) => {
+    const el = $(id);
+    el.classList.toggle('on', !!sett[k]);
+    el.onclick = () => { sett[k] = !sett[k]; LS.set('pevo.settings', sett); renderSetts(); toast(k === 'motion' ? 'frota reduzida: ' + (sett[k] ? 'ON' : 'OFF') : k + ': ' + (sett[k] ? 'ON' : 'OFF')); };
+  });
+}
+$('resetLocal').onclick = () => {
+  ['pevo.top10', 'pevo.skin', 'pevo.settings', 'pevo.wallet', 'pevo.wins'].forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
+  skin = { theme: 'bio', avatar: 'virus' }; sett = { motion: false, pause: false, wire: true }; wallet = null;
+  renderSetts(); renderSkins(); applySkin(); renderWallet();
+  toast('dados locais apagados');
+};
+
+/* ---------- wallet ---------- */
+const prov = () => (window.phantom && window.phantom.solana) || (window.solana && window.solana.isPhantom ? window.solana : null);
+const short = a => a ? a.slice(0, 4) + '…' + a.slice(-4) : '';
+async function renderWallet() {
+  const chip = $('walletChip'), box = $('walletBox'), btn = $('walletBtn');
+  const w = wallet || (prov() && prov().isConnected && prov().publicKey ? { addr: prov().publicKey.toString(), t: Date.now() } : null);
+  if (w && w.addr) {
+    chip.textContent = '◈ ' + short(w.addr); chip.className = 'on';
+    box.innerHTML = '<div class="rowline"><span class="k">endereço</span><span class="v" style="font-size:10px">' + w.addr + '</span></div>' +
+      '<div class="rowline"><span class="k">rede</span><span class="v">' + (w.net || 'Solana (mainnet)') + '</span></div>';
+    btn.textContent = 'Desligar wallet'; btn.classList.remove('ghost'); btn.classList.add('danger');
+    btn.onclick = () => { wallet = null; LS.set('pevo.wallet', null); renderWallet(); toast('wallet desligada (local)'); };
+  } else {
+    chip.textContent = '◈ wallet'; chip.className = 'off';
+    box.innerHTML = '<div class="small">sem wallet ligada — o jogo é livre e sem custos; ligar a Phantom é opcional e só lê o endereço.</div>';
+    btn.textContent = '◈ Ligar Phantom'; btn.classList.add('ghost'); btn.classList.remove('danger');
+    btn.onclick = connectWallet;
+  }
+}
+async function connectWallet() {
+  const p = prov();
+  if (!p) { toast('Phantom não detetado — instala a extensão e recarrega.'); return; }
+  const btn = $('walletBtn'); btn.textContent = '◈ A ligar…';
+  try {
+    const res = await p.connect();
+    const addr = (res && (res.publicKey ? res.publicKey.toString() : res.address)) || (p.publicKey ? p.publicKey.toString() : null);
+    if (!addr) throw new Error('sem endereço');
+    wallet = { addr, t: Date.now() };
+    LS.set('pevo.wallet', wallet);
+    toast('wallet ligada: ' + short(addr));
+    renderWallet();
+  } catch (e) {
+    toast('ligação cancelada ou recusada');
+    btn.textContent = '◈ Ligar Phantom';
+  }
+}
+$('walletChip').onclick = () => { if (wallet) { wallet = null; LS.set('pevo.wallet', null); renderWallet(); } else switchTab('dash'); };
+
+/* ---------- boot ---------- */
+(async function boot() {
+  applySkin(); renderSkins(); renderSetts(); renderWallet();
+  try {
+    const r = await fetch('/api/me');
+    me = await r.json();
+  } catch (_) {}
+  $('sysSrv').textContent = location.host || '—';
+  $('sysAlias').textContent = me.alias || '—';
+  const tab = (location.hash || '').slice(1);
+  if (tab && $('pane-' + tab)) { switchTab(tab); } else { switchTab('dash'); }
+  // redirecionamento amigável vindo do modo antigo: ?sim → direto para o PvE
+  if (new URLSearchParams(location.search).get('sim') === '1') switchTab('pve');
+})();
+</script>
+</body>
+</html>
